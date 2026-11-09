@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="ハコログのよくある質問・お問い合わせ・プライバシーポリシー">
+<meta name="theme-color" content="#0A6CFF">
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<title>ハコログ サポート</title>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<style>
+/* Layout: 1カラムの読みもの。青いロゴ帯の下に、よくある質問・お問い合わせ・プライバシーポリシー */
+:root{--bg:#F1F3F8;--card:#FFFFFF;--fg:#161A23;--muted:#667085;--line:#E3E7EF;--blue:#0A6CFF;--blue2:#3B8BFF;--good:#17A05D;--warn:#EA8C00;--bad:#E5484D;
+--font:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Noto Sans CJK JP",sans-serif;--round:ui-rounded,"Hiragino Maru Gothic ProN","Noto Sans CJK JP",sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0B0D12;--card:#181B22;--fg:#F2F4F8;--muted:#98A2B3;--line:#2A2F3A;--blue:#4D94FF;--blue2:#2F6FE0;--good:#3CC47C;--warn:#FFB020;--bad:#FF6B6E;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0B0D12;--card:#181B22;--fg:#F2F4F8;--muted:#98A2B3;--line:#2A2F3A;--blue:#4D94FF;--blue2:#2F6FE0;--good:#3CC47C;--warn:#FFB020;--bad:#FF6B6E;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:16px;line-height:1.75}
+.hero{background:linear-gradient(140deg,var(--blue2),var(--blue) 60%,#0753C9);color:#fff}
+.in{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.hero .in{padding-block:34px 30px;display:flex;gap:16px;align-items:center}
+.logo{width:64px;height:64px;border-radius:16px;background:rgba(255,255,255,.18);display:grid;place-items:center;flex:none}
+.logo svg{width:40px;height:40px}
+h1{font-family:var(--round);font-size:30px;font-weight:800;margin:0;line-height:1.2;text-wrap:balance}
+.hero p{margin:4px 0 0;opacity:.9}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 4px}
+nav a{text-decoration:none;color:var(--blue);background:var(--card);border-radius:999px;padding:6px 14px;font-weight:700;font-size:14px}
+main{padding-block:8px 60px}
+h2{font-family:var(--round);font-size:22px;font-weight:800;margin:34px 0 12px;display:flex;align-items:center;gap:8px;scroll-margin-top:16px}
+h2::before{content:"";width:6px;height:22px;border-radius:3px;background:var(--blue)}
+.card{background:var(--card);border-radius:18px;padding:18px 20px}
+details{background:var(--card);border-radius:16px;padding:14px 18px;margin:8px 0}
+summary{font-weight:800;cursor:pointer;list-style:none;display:flex;gap:10px}
+summary::before{content:"Q";color:var(--blue);font-weight:900}
+summary::-webkit-details-marker{display:none}
+details p{margin:8px 0 2px;color:var(--fg)}
+.mail{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.mail code{font-size:17px;font-weight:700;background:var(--bg);padding:8px 14px;border-radius:12px;user-select:all;word-break:break-all}
+button{border:0;background:var(--blue);color:#fff;font:inherit;font-weight:800;border-radius:999px;padding:9px 18px;cursor:pointer;min-height:44px}
+button:focus-visible,nav a:focus-visible,summary:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.lv{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.lv span{font-size:13px;font-weight:800;border-radius:999px;padding:3px 10px}
+.prose h3{font-size:16px;margin:16px 0 4px}
+.prose p{margin:0 0 6px;max-width:65ch}
+.sub{color:var(--muted);font-size:14px}
+footer{color:var(--muted);font-size:13px;text-align:center;padding-top:30px}
+</style>
+</head>
+<body>
+<header class="hero"><div class="in">
+  <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/><path d="M3 7.5v9L12 21l9-4.5v-9"/><path d="m8.5 14 2 2 4-4.5"/></svg></span>
+  <div><h1>ハコログ サポート</h1><p>配送ドライバーのための配達実績ノート</p></div>
+</div></header>
+
+<main class="in">
+  <nav aria-label="目次"><a href="#faq">よくある質問</a><a href="#contact">お問い合わせ</a><a href="#privacy">プライバシーポリシー</a></nav>
+
+  <h2 id="faq">よくある質問</h2>
+  <details open><summary>DCRとは何ですか？</summary>
+    <p>ハコログでは、DCRを「配達できなかった割合（未配達率）」として表示します。計算式は「未完了 ÷ 配達予定数 × 100」です。</p></details>
+  <details><summary>C1とC2のDCRはどう違いますか？</summary>
+    <p>C1のDCRは、C1だけの数値で計算します。C2のDCRは、C1とC2を合算した数値で計算します。そのためC2のDCRが、その日1日のDCRになります。</p>
+    <p class="sub">例：C1 予定100件・未完了2件 → C1のDCR 2.00%／C2 予定50件・未完了4件 → C2のDCR（150件中6件）4.00%</p></details>
+  <details><summary>週のDCRはどう計算していますか？</summary>
+    <p>日曜日のC1から土曜日のC2までの未完了の合計を、同じ期間の配達予定数の合計で割って計算します。月・年も同じように、件数を合計してから計算します。</p></details>
+  <details><summary>カレンダーの色は何を表していますか？</summary>
+    <p>その日のDCRに応じて3色で表示します。基準は「設定 → 色分けの目安」で0.1%単位で変えられます。</p>
+    <div class="lv"><span style="color:var(--good);background:color-mix(in srgb,var(--good) 15%,transparent)">良好 1.0%以下</span><span style="color:var(--warn);background:color-mix(in srgb,var(--warn) 15%,transparent)">注意 2.0%以下</span><span style="color:var(--bad);background:color-mix(in srgb,var(--bad) 15%,transparent)">要改善 2.0%超</span></div>
+    <p class="sub">上の数値は初期設定です。</p></details>
+    <details><summary>CU・UTA・NSL・BCの意味は？</summary>
+    <p>CU：置き配不可・受取人不在／UTA：アクセス不可／NSL：安全な置き場所なし／BC：営業時間外／その他：上記に該当しない未完了、です。</p></details>
+  <details><summary>機種変更するとき、データはどうなりますか？</summary>
+    <p>iPhoneのiCloudバックアップやクイックスタートで機種変更すれば、データはそのまま引き継がれます。</p>
+    <p>さらに安心な方法として、「設定 → iCloud Driveの保存先フォルダを選ぶ」でフォルダを選んでおくと、記録を保存するたびに「ハコログ_バックアップ.json」が自動保存されます。新しい端末では「設定 → iCloud Driveから復元」でこのファイルを選んでください。</p></details>
+  <details><summary>CSVで書き出せますか？</summary>
+    <p>はい。「履歴」タブ右上、または「設定 → CSVバックアップを書き出す」から書き出せます。Excelでも文字化けしない形式（UTF-8）です。</p></details>
+  <details><summary>間違えて入力したデータを消したい</summary>
+    <p>カレンダーの日付をタップして数字を直すか、入力画面の「C1（C2）の記録を削除」を押してください。「履歴」タブで左にスワイプしても削除できます。</p></details>
+  <details><summary>iPhone以外でも使えますか？</summary>
+    <p>AndroidやパソコンのブラウザでもハコログのWeb版を使えます。アプリのバックアップファイルを読み込むこともできます。</p></details>
+
+  <h2 id="contact">お問い合わせ</h2>
+  <div class="card">
+    <p style="margin:0 0 10px">不具合・ご要望は、下のメールアドレスまでお送りください。端末名・iOSのバージョン・症状（できればスクリーンショット）を添えていただくと、早く対応できます。</p>
+    <div class="mail"><code id="mail">kumachannel36@gmail.com</code><button id="copy" type="button">コピー</button></div>
+    <p class="sub" style="margin:10px 0 0">通常、数日以内に返信します。</p>
+  </div>
+
+  <h2 id="privacy">プライバシーポリシー</h2>
+  <div class="card prose">
+    <p>ハコログ（以下「本アプリ」）は、天然くま本舗が提供する配達実績の記録アプリです。</p>
+    <h3>1. 収集する情報</h3>
+    <p>本アプリは個人を特定できる情報を収集しません。入力した配達実績は、お使いの端末（ウェブ版はブラウザ）の中だけに保存されます。開発者のサーバーへ送信されることはありません。</p>
+    <h3>2. iCloud Driveへのバックアップ</h3>
+    <p>利用者が自分で選んだiCloud Driveのフォルダにバックアップファイルを保存できます。このファイルは利用者のiCloudアカウントに保存され、開発者が見ることはできません。</p>
+    <h3>3. 第三者への提供・広告・解析</h3>
+    <p>本アプリは第三者への情報提供、広告配信、利用状況の解析を行いません。</p>
+    <h3>4. データの削除</h3>
+    <p>設定の「全データを削除」、またはアプリの削除でいつでも消去できます。</p>
+    <h3>5. 改定</h3>
+    <p>内容を変更する場合は、このページでお知らせします。</p>
+    <h3>6. お問い合わせ</h3>
+    <p>kumachannel36@gmail.com</p>
+    <p class="sub">制定日：2026年11月8日</p>
+  </div>
+
+  <footer>© 2026 天然くま本舗</footer>
+</main>
+<script>
+document.getElementById('copy').addEventListener('click',function(){const b=this,t=document.getElementById('mail');
+const done=()=>{b.textContent='コピー済み';setTimeout(()=>b.textContent='コピー',1600)};
+const fb=()=>{const r=document.createRange();r.selectNodeContents(t);const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='選択しました';setTimeout(()=>b.textContent='コピー',1800)};
+if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t.textContent).then(done,fb);else fb()});
+</script>
+</body>
+</html>

@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="配送ドライバーのための配達実績ノート。C1・C2別のDCR（未配達率）を色分けで記録できます。">
+<meta name="theme-color" content="#0A6CFF">
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<title>ハコログ</title>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<style>
+/* Layout: iOS風。大見出し＋色分けカード、下にタブバー。DCR（未配達率）を良好・注意・要改善の3色で塗り分ける */
+:root{
+  --bg:#F1F3F8; --card:#FFFFFF; --fg:#161A23; --muted:#667085; --line:#E3E7EF; --fill:#EEF1F6;
+  --blue:#0A6CFF; --blue2:#3B8BFF; --green:#17A05D; --red:#E5484D; --purple:#7C4DDB;
+  --good:#17A05D; --warn:#EA8C00; --bad:#E5484D; --off:#98A2B3;
+  --c1:#2F7BF6; --c2:#F08A1C;
+  --r-cu:#E5484D; --r-uta:#F2A516; --r-nsl:#0E9F9D; --r-bc:#6E56CF; --r-other:#8B93A7;
+  --font:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Noto Sans CJK JP","Yu Gothic",sans-serif;
+  --round:ui-rounded,"SF Pro Rounded","Hiragino Maru Gothic ProN","M PLUS Rounded 1c","Noto Sans CJK JP",sans-serif;
+  --shadow:0 1px 2px rgba(16,24,40,.05),0 2px 8px rgba(16,24,40,.04);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0B0D12; --card:#181B22; --fg:#F2F4F8; --muted:#98A2B3; --line:#2A2F3A; --fill:#232833;
+  --blue:#4D94FF; --blue2:#2F6FE0; --green:#3CC47C; --red:#FF6B6E; --purple:#A784F0;
+  --good:#3CC47C; --warn:#FFB020; --bad:#FF6B6E; --off:#667085;
+  --c1:#5B9BFF; --c2:#FFA24C;
+  --r-cu:#FF6B6E; --r-uta:#F7BE3B; --r-nsl:#2CC5C2; --r-bc:#9C88F0; --r-other:#A3AABB;
+  --shadow:none; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0B0D12; --card:#181B22; --fg:#F2F4F8; --muted:#98A2B3; --line:#2A2F3A; --fill:#232833;
+  --blue:#4D94FF; --blue2:#2F6FE0; --green:#3CC47C; --red:#FF6B6E; --purple:#A784F0;
+  --good:#3CC47C; --warn:#FFB020; --bad:#FF6B6E; --off:#667085;
+  --c1:#5B9BFF; --c2:#FFA24C;
+  --r-cu:#FF6B6E; --r-uta:#F7BE3B; --r-nsl:#2CC5C2; --r-bc:#9C88F0; --r-other:#A3AABB;
+  --shadow:none; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--font);font-size:15px;line-height:1.5;-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px calc(100px + env(safe-area-inset-bottom,0px))}
+.top{display:flex;align-items:center;gap:10px;margin:6px 0 2px}
+.logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(145deg,var(--blue2),var(--blue));display:grid;place-items:center;flex:none}
+.logo svg{width:22px;height:22px}
+h1{font-family:var(--round);font-size:28px;font-weight:800;letter-spacing:.01em;margin:0;text-wrap:balance}
+h2{font-size:16px;font-weight:800;margin:0}
+.sub{color:var(--muted);font-size:13px}
+.num{font-variant-numeric:tabular-nums}
+.card{background:var(--card);border-radius:18px;box-shadow:var(--shadow);padding:16px;min-width:0}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+.btn{border:0;border-radius:12px;padding:10px 14px;background:var(--fill);font-weight:700;cursor:pointer;min-height:44px}
+.btn.primary{background:var(--blue);color:#fff}
+.btn.danger{background:color-mix(in srgb,var(--bad) 10%,var(--card));color:var(--bad)}
+.btn.ghost{background:transparent;color:var(--blue)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn:focus-visible,.tab:focus-visible,.seg button:focus-visible,.day:focus-visible,.item:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.seg{display:inline-flex;background:var(--fill);border-radius:12px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;border-radius:9px;padding:7px 14px;font-weight:700;font-size:14px;cursor:pointer;min-height:36px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.banner{background:color-mix(in srgb,var(--blue) 12%,var(--card));border-radius:16px;padding:12px 14px;font-size:14px}
+.tabbar{position:fixed;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--card) 90%,transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid var(--line);display:flex;justify-content:center;gap:4px;padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));z-index:20}
+.tab{flex:1;max-width:150px;border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:1px;font-size:11px;font-weight:700;color:var(--muted);padding:4px 0;cursor:pointer;border-radius:12px}
+.tab svg{width:26px;height:26px}
+.tab[aria-current="page"]{color:var(--blue)}
+.tab[aria-current="page"] svg{background:color-mix(in srgb,var(--blue) 14%,transparent);border-radius:9px;padding:2px;width:34px}
+.legend{display:flex;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.lg{display:inline-flex;align-items:center;gap:5px;background:var(--card);border-radius:999px;padding:4px 10px;box-shadow:var(--shadow);font-weight:600}
+.lg i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.st{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:800;border-radius:999px;padding:3px 10px;color:var(--s);background:color-mix(in srgb,var(--s) 15%,transparent)}
+.calhead{display:flex;align-items:center;gap:8px}
+.calhead .title{font-family:var(--round);font-size:21px;font-weight:800}
+.iconbtn{border:0;background:var(--card);box-shadow:var(--shadow);border-radius:50%;width:40px;height:40px;cursor:pointer;font-size:20px;font-weight:800;color:var(--blue)}
+.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.dow{text-align:center;font-size:12px;font-weight:800;color:var(--muted);padding:2px 0 4px}
+.dow.sun{color:var(--red)} .dow.sat{color:var(--blue)}
+.day{--s:var(--off);border:0;background:var(--card);border-radius:12px;min-height:84px;padding:6px 5px 5px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:0;min-width:0;overflow:hidden;position:relative;box-shadow:var(--shadow)}
+.day.has{background:color-mix(in srgb,var(--s) 11%,var(--card))}
+.day.has::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:var(--s)}
+.day.out{opacity:.35}
+.day.today{box-shadow:inset 0 0 0 2px var(--blue)}
+.day .d{font-size:13px;font-weight:800;display:flex;align-items:center;gap:3px}
+.day .d.sun{color:var(--red)} .day .d.sat{color:var(--blue)}
+.day .l{font-size:10.5px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+.day .l b{color:var(--fg);font-weight:700}
+.day .dcr{font-size:12px;font-weight:800;color:var(--s);margin-top:auto;white-space:nowrap}
+.day .cv{font-size:11.5px;font-weight:800;white-space:nowrap;line-height:1.3;display:flex;gap:3px;align-items:baseline}
+.day .cv i{font-style:normal;font-size:9.5px;font-weight:800;border-radius:4px;padding:0 3px;color:#fff;background:var(--cc)}
+.day .cv span{color:var(--lv)}
+.day .bar{display:flex;height:4px;border-radius:2px;overflow:hidden;margin-top:3px;gap:1px}
+.day .bar span{display:block;height:100%}
+.week{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12px;padding:2px 2px 10px}
+.wchip{display:inline-flex;gap:4px;align-items:center;border-radius:999px;padding:3px 10px;background:var(--fill);color:var(--muted);font-weight:600}
+.wchip b{color:var(--fg)}
+.wchip.s{background:color-mix(in srgb,var(--s) 14%,transparent);color:var(--s)}
+.wchip.s b{color:var(--s)}
+.hero{border-radius:22px;padding:18px;color:#fff;background:linear-gradient(140deg,var(--blue2),var(--blue) 60%,#0753C9);display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px;align-items:center}
+.hero .k{font-size:13px;font-weight:700;opacity:.9}
+.hero .big{font-family:var(--round);font-size:44px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+.hero .pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.18);border-radius:999px;padding:4px 12px;font-weight:800;font-size:13px;margin-top:6px}
+.hero .pill i{width:10px;height:10px;border-radius:50%;background:var(--s);box-shadow:0 0 0 2px #fff}
+.hero .mini{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.hero .mini div{background:rgba(255,255,255,.14);border-radius:14px;padding:8px 10px;min-width:0}
+.hero .mini span{display:block;font-size:11px;opacity:.85;font-weight:700}
+.hero .mini b{font-size:18px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.kpi{--k:var(--blue);background:var(--card);border-radius:16px;padding:12px;box-shadow:var(--shadow);min-width:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;align-items:center}
+.ki{grid-row:span 2;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--k) 15%,transparent);color:var(--k)}
+.ki svg{width:22px;height:22px}
+.kpi .k{font-size:12px;color:var(--muted);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .v{font-size:21px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--k)}
+.kpi .v.plain{color:var(--fg)}
+.kpi .v small{font-size:12px;font-weight:700;color:var(--muted);margin-left:2px}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
+.chart svg{width:100%;height:auto;display:block}
+.chart h2{display:flex;align-items:center;gap:8px}
+.chart h2 i{width:8px;height:18px;border-radius:4px;display:inline-block}
+.clegend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:6px 0}
+.clegend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.empty{padding:26px 8px;text-align:center;color:var(--muted);font-size:14px}
+.sectiontitle{font-family:var(--round);font-size:18px;font-weight:800;margin:10px 2px 0;display:flex;align-items:center;gap:8px}
+.sectiontitle::before{content:"";width:6px;height:20px;border-radius:3px;background:var(--t,var(--blue))}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{--s:var(--off);display:block;width:100%;text-align:left;border:0;background:var(--card);border-radius:16px;padding:12px 14px 12px 18px;cursor:pointer;position:relative;box-shadow:var(--shadow);overflow:hidden}
+.item::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--s)}
+.pill{display:inline-block;font-size:12px;font-weight:800;border-radius:999px;padding:2px 9px}
+.pill.c1{background:color-mix(in srgb,var(--c1) 16%,transparent);color:var(--c1)}
+.pill.c2{background:color-mix(in srgb,var(--c2) 18%,transparent);color:var(--c2)}
+.chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.chip{font-size:11px;font-weight:700;border-radius:7px;padding:2px 7px;background:var(--fill);color:var(--muted)}
+.chip.on{background:color-mix(in srgb,var(--rc) 16%,transparent);color:var(--rc)}
+.overlay{position:fixed;inset:0;background:rgba(10,14,24,.45);z-index:40;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:900px;max-height:92%;overflow:auto;border-radius:22px 22px 0 0;padding:14px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+@media (min-width:760px){.overlay{align-items:center}.sheet{border-radius:22px;max-height:88%}}
+.cycles{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.cyc{padding:0;overflow:hidden}
+.cyc .hd{padding:12px 16px;color:#fff;display:flex;align-items:center;gap:8px;font-weight:800;font-size:16px}
+.cyc .hd.c1{background:linear-gradient(135deg,var(--c1),color-mix(in srgb,var(--c1) 70%,#003))}
+.cyc .hd.c2{background:linear-gradient(135deg,var(--c2),color-mix(in srgb,var(--c2) 70%,#300))}
+.cyc .hd .st{margin-left:auto;background:rgba(255,255,255,.92)}
+.cyc .bd{padding:6px 16px 14px}
+.field{--rc:var(--blue);display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)}
+.field.plan{padding:10px 0}
+.field label{flex:1;min-width:0;display:flex;align-items:center;gap:8px}
+.field label .rdot{width:10px;height:10px;border-radius:3px;background:var(--rc);flex:none}
+.field label span{min-width:0}
+.field label small{display:block;color:var(--muted);font-size:11.5px;line-height:1.2}
+.stepper{display:flex;align-items:center;gap:4px}
+.stepper button{width:36px;height:36px;border-radius:10px;border:0;background:color-mix(in srgb,var(--rc) 13%,transparent);font-size:18px;font-weight:800;cursor:pointer;color:var(--rc)}
+.stepper input{width:64px;text-align:center;border:1px solid var(--line);border-radius:10px;height:36px;background:var(--card);font-variant-numeric:tabular-nums;font-weight:700}
+.field.plan input{width:76px;font-size:17px}
+.calc{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:12px}
+.calc div{--c:var(--fg);background:color-mix(in srgb,var(--c) 9%,var(--card));border-radius:12px;padding:7px 4px;text-align:center;min-width:0}
+.calc span{display:block;font-size:11px;color:var(--muted);font-weight:700}
+.calc b{font-size:15px;font-variant-numeric:tabular-nums;color:var(--c)}
+.err{color:var(--bad);font-size:13px;font-weight:700;margin-top:8px}
+.check{--rc:var(--blue);display:flex;align-items:center;gap:12px;padding:10px 2px;border-bottom:1px solid var(--line);cursor:pointer}
+.check:last-child{border-bottom:0}
+.check input{width:22px;height:22px;accent-color:var(--rc)}
+.check .tag{font-weight:800;color:var(--rc)}
+textarea{width:100%;min-height:160px;border-radius:12px;border:1px solid var(--line);background:var(--card);padding:10px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+.thr{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.thr:last-child{border-bottom:0}
+.thr input{width:84px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--card);text-align:center;font-weight:700}
+.scale{display:flex;height:10px;border-radius:5px;overflow:hidden;margin:10px 0 2px}
+@media (max-width:760px){.two{grid-template-columns:minmax(0,1fr)}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.charts{grid-template-columns:minmax(0,1fr)}.hero{grid-template-columns:minmax(0,1fr)}}
+@media (min-width:900px){.day{min-height:112px;padding:8px 8px 6px}.day .d{font-size:16px}.day .l{font-size:13px}.day .cv{font-size:14.5px}.day .cv i{font-size:11px}.day .dcr{font-size:15px}.day .bar{height:5px}.week{font-size:13px}}
+@media (max-width:430px){.day{min-height:92px;padding:6px 3px 4px;border-radius:10px}.day .l{font-size:9.5px}.day .cv{font-size:10.5px;gap:3px;align-items:center}.day .cv i{font-size:0;width:4px;height:11px;padding:0;border-radius:2px}.day .dcr{font-size:10.5px}.grid{gap:3px}h1{font-size:25px}.hero .big{font-size:40px}}
+.schip{display:inline-flex;gap:4px;align-items:center;border-radius:999px;padding:3px 10px;font-weight:700;cursor:pointer;border:1px solid color-mix(in srgb,var(--blue) 45%,transparent);background:transparent;color:var(--blue);font-size:12px;min-height:26px}
+.schip.has{background:color-mix(in srgb,var(--blue) 14%,transparent);border-color:transparent}
+.schip .wn{color:var(--warn)}
+.shero{border-radius:22px;padding:18px;color:#fff;background:linear-gradient(140deg,var(--blue2),var(--blue) 60%,#0753C9)}
+.shero .big{font-family:var(--round);font-size:54px;font-weight:800;line-height:1.05;font-variant-numeric:tabular-nums}
+.shero .tag{background:rgba(255,255,255,.2);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:800}
+.note{display:flex;gap:8px;align-items:flex-start;border-radius:14px;padding:10px 12px;font-size:14px;background:color-mix(in srgb,var(--nc) 12%,var(--card))}
+.note b{color:var(--nc)}
+.sgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-top:12px}
+@media (max-width:760px){.sgrid{grid-template-columns:minmax(0,1fr)}}
+.srow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.srow:last-child{border-bottom:0}
+.srow label b{display:inline-block;margin-right:6px}
+.srow label small{display:block;color:var(--muted);font-size:12px}
+.srow input{width:96px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--card);text-align:right;padding:0 10px;font-weight:700;font-variant-numeric:tabular-nums}
+.srow input.bad{border-color:var(--bad);box-shadow:0 0 0 2px color-mix(in srgb,var(--bad) 25%,transparent)}
+.srow .u{color:var(--muted);font-size:13px;width:20px}
+.mk{font-size:11px;font-weight:800;border-radius:999px;padding:1px 7px;vertical-align:1px}
+.mk.e{color:var(--warn);background:color-mix(in srgb,var(--warn) 15%,transparent)}
+.mk.x{color:var(--bad);background:color-mix(in srgb,var(--bad) 15%,transparent)}
+.bline{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.bline:last-child{border-bottom:0}
+.bline .p{font-weight:800;font-variant-numeric:tabular-nums}
+.shd{display:flex;gap:8px;align-items:center;margin-bottom:4px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:700;z-index:60;font-size:14px}
+.prose p{margin:.4em 0;max-width:65ch}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .22s ease-out}@keyframes up{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<nav class="tabbar" id="tabbar" aria-label="タブ"></nav>
+<div id="modal"></div>
+
+<script>
+(function(){
+"use strict";
+const REASONS=[
+ {k:'cu',label:'CU',desc:'置き配不可・受取人不在',color:'var(--r-cu)'},
+ {k:'uta',label:'UTA',desc:'アクセス不可',color:'var(--r-uta)'},
+ {k:'nsl',label:'NSL',desc:'安全な置き場所なし',color:'var(--r-nsl)'},
+ {k:'bc',label:'BC',desc:'営業時間外',color:'var(--r-bc)'},
+ {k:'other',label:'その他',desc:'上記に該当しない未完了',color:'var(--r-other)'}];
+const STORE_KEY='hakolog.v1';
+const params=new URLSearchParams(location.search);
+const IOS=params.get('ios')==='1';
+const TODAY=params.get('today')?parseD(params.get('today')):stripTime(new Date());
+const APP_NAME='ハコログ';
+const BACKUP_NAME='ハコログ_バックアップ.json';
+
+let state={records:{},settings:defaultSettings(),demo:false,scorecards:{}};
+let ui={tab:'calendar',month:new Date(TODAY.getFullYear(),TODAY.getMonth(),1),range:'30d',
+  aMonth:new Date(TODAY.getFullYear(),TODAY.getMonth(),1),aYear:TODAY.getFullYear(),histMonth:'all',histDesc:true};
+const hostTheme=document.documentElement.getAttribute('data-theme');
+function defaultSettings(){return{appearance:'system',decimals:2,goodLimit:1.0,warnLimit:2.0}}
+
+function stripTime(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate())}
+function pad(n){return String(n).padStart(2,'0')}
+function ymd(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function parseD(s){const m=/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/.exec(String(s).trim());if(!m)return null;const d=new Date(+m[1],+m[2]-1,+m[3]);return (d.getMonth()===+m[2]-1)?d:null}
+function addDays(d,n){return new Date(d.getFullYear(),d.getMonth(),d.getDate()+n)}
+function daysBetween(a,b){const out=[];for(let d=a;d<=b;d=addDays(d,1))out.push(ymd(d));return out}
+function monthDates(m){return daysBetween(new Date(m.getFullYear(),m.getMonth(),1),new Date(m.getFullYear(),m.getMonth()+1,0))}
+function weekStartOf(d){return addDays(d,-d.getDay())} // 週は日曜C1〜土曜C2
+const DOW=['日','月','火','水','木','金','土'];
+function jpDate(s){const d=parseD(s);return (d.getMonth()+1)+'/'+d.getDate()+'('+DOW[d.getDay()]+')'}
+
+function load(){try{const raw=localStorage.getItem(STORE_KEY);if(raw){const j=JSON.parse(raw);const r=fromBackup(j);state.records=r.records;state.settings=r.settings;state.demo=!!j.demo;return true}}catch(e){}return false}
+function save(){try{const j=toBackup();j.demo=state.demo;localStorage.setItem(STORE_KEY,JSON.stringify(j))}catch(e){}}
+function toBackup(){return{app:'Hakolog',format:1,exportedAt:new Date().toISOString(),settings:{...state.settings},scorecards:cleanCards(Object.values(state.scorecards)).sort((a,b)=>a.weekStart<b.weekStart?-1:1),
+  records:Object.values(state.records).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:a.cycle-b.cycle).map(r=>({date:r.date,cycle:r.cycle,planned:r.planned,cu:r.cu,uta:r.uta,nsl:r.nsl,bc:r.bc,other:r.other}))}}
+function fromBackup(j){
+  if(!j||!Array.isArray(j.records))throw new Error('バックアップファイルの形式が違います');
+  const s={...defaultSettings(),...(j.settings||{})};
+  delete s.targets;delete s.weekStartsMonday;
+  s.decimals=Math.min(3,Math.max(0,parseInt(s.decimals,10)||0));
+  s.goodLimit=clampNum(s.goodLimit,1.0);s.warnLimit=Math.max(s.goodLimit,clampNum(s.warnLimit,2.0));
+  const records={};const errors=[];
+  j.records.forEach((x,i)=>{const r=validate(x);if(typeof r==='string')errors.push((i+1)+'件目: '+r);else records[key(r.date,r.cycle)]=r});
+  return{records,settings:s,errors}}
+function clampNum(v,d){const n=Number(v);return Number.isFinite(n)&&n>=0&&n<=100?Math.round(n*10)/10:d}
+function validate(x){
+  const d=parseD(x.date);if(!d)return '日付が読めません';
+  const c=parseInt(String(x.cycle).replace(/^C/i,''),10);if(c!==1&&c!==2)return 'サイクルはC1かC2です';
+  const r={date:ymd(d),cycle:c};
+  for(const f of ['planned','cu','uta','nsl','bc','other']){const raw=x[f];const v=(raw===undefined||raw===null||raw==='')?0:Number(raw);if(!Number.isInteger(v)||v<0)return f+'が0以上の整数ではありません';r[f]=v}
+  if(inc(r)>r.planned)return '未完了の合計が配達予定数を超えています';
+  return r}
+function key(d,c){return d+'|'+c}
+
+// DCR（未配達率）＝ 未完了 ÷ 配達予定数 × 100
+// ・C1のDCR：C1だけの数値
+// ・C2のDCR：C1とC2を合算した数値（＝その日のDCR）
+// ・週：日曜C1〜土曜C2の合計で計算。月・年も件数を合算してから計算
+function rec(date,c){return state.records[key(date,c)]||null}
+function inc(r){return r.cu+r.uta+r.nsl+r.bc+r.other}
+function rate(a,b){return b>0?a/b*100:null}
+function cyc(r){if(!r)return null;const i=inc(r);return{...r,inc:i,comp:r.planned-i,dcr:rate(i,r.planned)}}
+function day(date){
+  const a=rec(date,1),b=rec(date,2);const rs=[a,b].filter(Boolean);
+  const planned=rs.reduce((s,r)=>s+r.planned,0),i=rs.reduce((s,r)=>s+inc(r),0);
+  const reasons={};REASONS.forEach(x=>reasons[x.k]=rs.reduce((s,r)=>s+r[x.k],0));
+  const c1=cyc(a),c2=cyc(b);
+  return{date,c1,c2,entered:rs.length>0,planned,inc:i,comp:planned-i,reasons,dcr:rate(i,planned),
+    c1dcr:c1&&c1.planned>0?c1.dcr:null, c2dcr:c2&&c2.planned>0?rate(i,planned):null, working:planned>0}}
+function period(dates){
+  const days=dates.map(day),work=days.filter(d=>d.working);
+  const planned=work.reduce((s,d)=>s+d.planned,0),comp=work.reduce((s,d)=>s+d.comp,0),i=work.reduce((s,d)=>s+d.inc,0);
+  const reasons={};REASONS.forEach(x=>reasons[x.k]=work.reduce((s,d)=>s+d.reasons[x.k],0));
+  const c1=days.map(d=>d.c1).filter(c=>c&&c.planned>0),c2=days.map(d=>d.c2).filter(c=>c&&c.planned>0);
+  const c1p=c1.reduce((s,c)=>s+c.planned,0),c1i=c1.reduce((s,c)=>s+c.inc,0),c2p=c2.reduce((s,c)=>s+c.planned,0),c2i=c2.reduce((s,c)=>s+c.inc,0);
+  let top=null;REASONS.forEach(x=>{if(reasons[x.k]>0&&(!top||reasons[x.k]>reasons[top.k]))top=x});
+  return{days,work,planned,comp,inc:i,reasons,workdays:work.length,dcr:rate(i,planned),c1dcr:rate(c1i,c1p),c2only:rate(c2i,c2p),top}}
+function level(v){if(v==null)return{k:'off',c:'var(--off)',label:'記録なし'};const s=state.settings;
+  if(v<=s.goodLimit+1e-9)return{k:'good',c:'var(--good)',label:'良好'};if(v<=s.warnLimit+1e-9)return{k:'warn',c:'var(--warn)',label:'注意'};return{k:'bad',c:'var(--bad)',label:'要改善'}}
+
+// ===== 週間スコアカード =====
+// 週は日曜始まり・土曜終わり。入力値は文字列のまま保存（空欄＝未入力 と 0 を区別）
+// 計算は10進の整数演算（BigInt）で行い、途中で丸めない。新ルールは2026-09-06の週から
+const SC_KEY='hakolog.scorecards.v1';
+const RULE_START='2026-09-06';
+const SF=[
+ {k:'mentor',label:'Mentorスコア',unit:'点',rule:'800未満で −10点',ph:'例 848',int:false},
+ {k:'dnr',label:'DNR問い合わせ',unit:'件',rule:'1件 −25点（回収できた場合も1件）',ph:'0',int:true,mul:'-25'},
+ {k:'returnRate',label:'持ち戻り率',unit:'％',rule:'入力値 × −50点（0.48 → 0.48％）',ph:'例 0.48',int:false,mul:'-50'},
+ {k:'late',label:'遅刻・早退',unit:'回',rule:'1回 −15点',ph:'0',int:true,mul:'-15'},
+ {k:'accident',label:'欠車・事故',unit:'件',rule:'1件 −100点',ph:'0',int:true,mul:'-100'},
+ {k:'workDays',label:'稼働日数',unit:'日',rule:'1日 ＋2.5点（対象月の数字）',ph:'0',int:true,mul:'2.5'},
+ {k:'requestedOff',label:'希望休数',unit:'日',rule:'1日 −2.5点（対象月の数字）',ph:'0',int:true,mul:'-2.5'},
+ {k:'follow',label:'フォロー',unit:'回',rule:'1回 ＋10点',ph:'0',int:true,mul:'10'},
+ {k:'morningAbsent',label:'朝礼欠席',unit:'回',rule:'1回 −10点',ph:'0',int:true,mul:'-10'}];
+function decParse(str){const neg=str.startsWith('-');const t=neg?str.slice(1):str;const [a,b='']=t.split('.');const n=BigInt((a||'0')+b);return{n:neg?-n:n,s:b.length}}
+function decMul(x,y){return{n:x.n*y.n,s:x.s+y.s}}
+function decAdd(x,y){const s=Math.max(x.s,y.s);return{n:x.n*10n**BigInt(s-x.s)+y.n*10n**BigInt(s-y.s),s}}
+function decCmp(x,y){const d=decAdd(x,{n:-y.n,s:y.s});return d.n<0n?-1:d.n>0n?1:0}
+function decText(x){let neg=x.n<0n,t=(neg?-x.n:x.n).toString();if(x.s>0){t=t.padStart(x.s+1,'0');t=t.slice(0,t.length-x.s)+'.'+t.slice(t.length-x.s);t=t.replace(/\.?0+$/,'')}return (neg&&t!=='0'?'−':'')+t}
+function decSigned(x){return x.n>0n?'＋'+decText(x):x.n<0n?decText(x):'±0'}
+function scParse(raw,isInt){if(raw==null)return{st:'empty'};let t=String(raw).trim();if(!t)return{st:'empty'};
+  t=t.replace(/[０-９．]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/[,，%％\s]/g,'');
+  if(!(isInt?/^\d+$/:/^(\d+\.?\d*|\.\d+)$/).test(t))return{st:'invalid'};
+  if(t.startsWith('.'))t='0'+t;if(t.endsWith('.'))t=t.slice(0,-1);return{st:'value',v:decParse(t)}}
+function scCalc(card){let total={n:100n,s:0};const lines=[],missing=[],invalid=[];
+  SF.forEach(f=>{const p=scParse(card[f.k],f.int);let pts={n:0n,s:0};
+    if(p.st==='empty')missing.push(f);else if(p.st==='invalid')invalid.push(f);
+    else pts=f.k==='mentor'?(decCmp(p.v,{n:800n,s:0})<0?{n:-10n,s:0}:{n:0n,s:0}):decMul(p.v,decParse(f.mul));
+    total=decAdd(total,pts);lines.push({f,p,pts})});
+  return{total,lines,missing,invalid,complete:!missing.length&&!invalid.length}}
+function weekLabel(ws){const d=parseD(ws),e=addDays(d,6);return (d.getMonth()+1)+'/'+d.getDate()+'〜'+(e.getMonth()+1)+'/'+e.getDate()}
+function monthChoices(ws){const d=parseD(ws),a=ymd(d).slice(0,7),b=ymd(addDays(d,6)).slice(0,7);return a===b?[a]:[a,b]}
+function cardEmpty(c){return SF.every(f=>!c[f.k]||!String(c[f.k]).trim())}
+function loadScorecards(){try{const raw=localStorage.getItem(SC_KEY);if(raw){const a=JSON.parse(raw);if(Array.isArray(a))a.forEach(c=>{if(c&&parseD(c.weekStart))state.scorecards[c.weekStart]=c})}}catch(e){}}
+function saveScorecards(){try{localStorage.setItem(SC_KEY,JSON.stringify(Object.values(state.scorecards).sort((a,b)=>a.weekStart<b.weekStart?-1:1)))}catch(e){}}
+function cleanCards(arr){const out=[];(Array.isArray(arr)?arr:[]).forEach(c=>{if(!c||!parseD(c.weekStart))return;const o={weekStart:ymd(parseD(c.weekStart)),targetMonth:/^\d{4}-\d{2}$/.test(c.targetMonth)?c.targetMonth:monthChoices(ymd(parseD(c.weekStart))).slice(-1)[0]};SF.forEach(f=>{if(c[f.k]!=null&&String(c[f.k]).trim()!=='')o[f.k]=String(c[f.k])});out.push(o)});return out}
+function scoreChip(ws){const c=state.scorecards[ws];if(!c)return `<button class="schip" data-score="${ws}" aria-label="${weekLabel(ws)}の週間スコアカードを入力">＋ スコア入力</button>`;
+  const r=scCalc(c);return `<button class="schip has" data-score="${ws}" aria-label="${weekLabel(ws)}の週間スコアカード">スコア <b>${decText(r.total)}点</b>${r.complete?'':'<span class="wn">⚠︎</span>'}</button>`}
+
+function openScore(ws){
+  const had=!!state.scorecards[ws];
+  const draft=had?{...state.scorecards[ws]}:{weekStart:ws,targetMonth:monthChoices(ws).slice(-1)[0]};
+  const m=document.getElementById('modal');const months=monthChoices(ws);
+  function row(f,title){const v=draft[f.k]??'';return `<div class="srow"><label for="sc_${f.k}"><b>${title||f.label}</b><span class="mk" id="mk_${f.k}"></span><small>${f.rule}</small></label><input id="sc_${f.k}" data-sc="${f.k}" inputmode="${f.int?'numeric':'decimal'}" placeholder="${f.ph}" value="${esc(v)}" autocomplete="off"><span class="u">${f.unit}</span></div>`}
+  const g=k=>SF.find(f=>f.k===k);
+  m.innerHTML=`<div class="overlay" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-label="週間スコアカード ${weekLabel(ws)}">
+   <div class="row" style="margin-bottom:10px"><button class="btn ghost" data-x="cancel">キャンセル</button><span class="spacer"></span><h2>週間スコアカード</h2><span class="spacer"></span><button class="btn primary" data-x="save" id="scsave">保存</button></div>
+   <div class="shero"><div class="row"><b>📅 ${weekLabel(ws)}</b><span class="spacer"></span><span class="tag" id="sctag"></span></div><div class="row" style="align-items:baseline;gap:4px"><span class="big" id="sctotal"></span><b style="font-size:22px">点</b></div><div style="font-size:12px;opacity:.9">基本点 100点 からの加点・減点で計算</div></div>
+   <div class="stack" style="gap:8px;margin-top:12px" id="scnotes"></div>
+   <div class="sgrid">
+    <div class="card"><div class="shd"><h2>週の成績</h2></div>${['mentor','dnr','returnRate','late','accident','follow','morningAbsent'].map(k=>row(g(k))).join('')}
+     <div class="shd" style="margin-top:14px"><h2 id="scmh"></h2></div>
+     ${months.length>1?`<p class="sub" style="margin:0 0 6px">この週は月をまたいでいます。稼働日数と希望休数の対象月を選んでください。</p><div class="seg" role="group" aria-label="対象月">${months.map(mm=>`<button data-month="${mm}" aria-pressed="${draft.targetMonth===mm}">${+mm.slice(0,4)}年${+mm.slice(5)}月</button>`).join('')}</div>`:''}
+     <div id="scmonthrows"></div></div>
+    <div class="card"><div class="shd"><h2>計算の内訳</h2></div><div id="scbreak"></div><p class="sub" style="margin:8px 0 0">新ルール：2026年9月6日〜9月12日の週から適用。計算途中では丸めていません。</p></div>
+   </div>
+   ${had?`<div style="margin-top:12px"><button class="btn danger" data-x="del" style="width:100%">この週のスコアカードを削除</button></div>`:''}
+  </div></div>`;
+  function monthRows(){const ml=+draft.targetMonth.slice(5)+'月';document.getElementById('scmh').textContent='対象月の数字（'+ml+'）';
+    document.getElementById('scmonthrows').innerHTML=row(g('workDays'),'稼働日数（'+ml+'）')+row(g('requestedOff'),'希望休数（'+ml+'）')}
+  function upd(){const r=scCalc(draft);
+    document.getElementById('sctotal').textContent=decText(r.total);
+    document.getElementById('sctag').textContent=r.complete?'入力完了':'未入力あり';
+    let notes='';
+    if(ws<RULE_START)notes+=`<div class="note" style="--nc:var(--blue)">ℹ︎ <span>この週は新ルール（2026年9月6日〜の週）より前です。新ルールで計算した参考値を表示しています。</span></div>`;
+    if(r.invalid.length)notes+=`<div class="note" style="--nc:var(--bad)"><b>✕</b><span>数字で入力してください：${r.invalid.map(f=>f.label).join('、')}</span></div>`;
+    if(r.missing.length)notes+=`<div class="note" style="--nc:var(--warn)"><b>⚠︎</b><span>未入力の項目があります：${r.missing.map(f=>f.label).join('、')}。空欄は0点として仮計算しています。</span></div>`;
+    document.getElementById('scnotes').innerHTML=notes;
+    SF.forEach(f=>{const p=scParse(draft[f.k],f.int);const mk=document.getElementById('mk_'+f.k),inp=document.getElementById('sc_'+f.k);
+      if(mk){mk.className='mk '+(p.st==='empty'?'e':p.st==='invalid'?'x':'');mk.textContent=p.st==='empty'?'未入力':p.st==='invalid'?'数字で入力':''}
+      if(inp)inp.classList.toggle('bad',p.st==='invalid')});
+    document.getElementById('scbreak').innerHTML=`<div class="bline"><b style="flex:1">基本点</b><span class="p">100点</span></div>`+
+      r.lines.map(l=>{const vt=l.p.st==='empty'?'<span style="color:var(--warn)">未入力</span>':l.p.st==='invalid'?'<span style="color:var(--bad)">数字で入力してください</span>':(l.f.k==='mentor'?decText(l.p.v)+'点（'+(decCmp(l.p.v,{n:800n,s:0})<0?'800未満':'800以上')+'）':decText(l.p.v)+l.f.unit);
+        const pt=l.p.st==='empty'?'−':l.p.st==='invalid'?'?':decSigned(l.pts)+'点';const col=l.pts.n>0n?'var(--green)':l.pts.n<0n?'var(--red)':'var(--muted)';
+        return `<div class="bline"><div style="flex:1;min-width:0"><b>${l.f.label}</b><div class="sub">${vt}</div></div><span class="p" style="color:${col}">${pt}</span></div>`}).join('')+
+      `<div class="bline"><b style="flex:1;font-size:17px">合計</b><span class="p" style="font-size:24px;color:${r.total.n<0n?'var(--bad)':'var(--fg)'}">${decText(r.total)}点</span></div>`;
+    document.getElementById('scsave').disabled=r.invalid.length>0}
+  monthRows();upd();
+  const ov=document.getElementById('ov');
+  ov.addEventListener('input',e=>{const k=e.target.dataset.sc;if(!k)return;const v=e.target.value;if(v.trim())draft[k]=v;else delete draft[k];upd()});
+  ov.addEventListener('click',e=>{if(e.target===ov){m.innerHTML='';return}const b=e.target.closest('button');if(!b)return;
+    if(b.dataset.month){draft.targetMonth=b.dataset.month;ov.querySelectorAll('[data-month]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.month===draft.targetMonth));monthRows();upd();return}
+    if(b.dataset.x==='cancel'){m.innerHTML='';return}
+    if(b.dataset.x==='save'){if(cardEmpty(draft))delete state.scorecards[ws];else state.scorecards[ws]=cleanCards([draft])[0];saveScorecards();m.innerHTML='';render();toast('スコアカードを保存しました');return}
+    if(b.dataset.x==='del'){m.innerHTML='';confirmBox('この週のスコアカードを削除しますか？',weekLabel(ws)+'の入力内容が消えます。配達記録は消えません。','削除',()=>{delete state.scorecards[ws];saveScorecards();render();toast('スコアカードを削除しました')})}});
+  setTimeout(()=>{const f=document.getElementById('sc_mentor');if(f&&!params.get('shot'))f.focus()},50)}
+
+function pct(v){return v==null?'—':v.toFixed(state.settings.decimals)+'%'}
+function n(v){return Number(v).toLocaleString('ja-JP')}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2200)}
+function applyTheme(){const a=state.settings.appearance,root=document.documentElement;
+  if(a==='light'||a==='dark')root.setAttribute('data-theme',a);else if(hostTheme)root.setAttribute('data-theme',hostTheme);else root.removeAttribute('data-theme')}
+function lim(v){return Number(v).toFixed(1)}
+function stPill(v){const l=level(v);return `<span class="st" style="--s:${l.c}">${l.label}</span>`}
+
+function niceMax(v){if(v<=0)return 1;const st=v/4,p=Math.pow(10,Math.floor(Math.log10(st))),f=st/p;const c=[1,1.5,2,2.5,3,4,5,6,8,10].find(x=>x>=f-1e-9);return c*p*4}
+function chartW(){const el=document.getElementById('app');const w=el?el.clientWidth:640;const inner=w-32;const card=inner<720?inner:(inner-14)/2;return Math.max(300,Math.min(620,Math.round(card-32)))}
+function chartSVG(o){
+  const W=chartW(),H=Math.round(W*0.42)+40,L=40,R=12,T=18,B=28,iw=W-L-R,ih=H-T-B,N=o.labels.length;
+  const all=[];o.series.forEach(s=>s.values.forEach(v=>{if(v!=null)all.push(v)}));
+  let max=o.type==='stack'?Math.max(0,...o.labels.map((_,i)=>o.series.reduce((s,se)=>s+(se.values[i]||0),0))):Math.max(0,...all);
+  if(o.bands)max=Math.max(max,state.settings.warnLimit*1.25);
+  const yMin=0,yMax=niceMax(max*1.1||1);
+  const y=v=>T+ih-(Math.min(v,yMax)-yMin)/(yMax-yMin)*ih;
+  const step=iw/Math.max(N,1),x=i=>L+step*(i+.5);
+  let g='';
+  if(o.bands){const s=state.settings;[[0,s.goodLimit,'var(--good)'],[s.goodLimit,s.warnLimit,'var(--warn)'],[s.warnLimit,yMax,'var(--bad)']].forEach(([a,b,c])=>{if(b>a)g+=`<rect x="${L}" y="${y(b)}" width="${iw}" height="${y(a)-y(b)}" fill="${c}" fill-opacity=".09"/>`})}
+  for(let k=0;k<=4;k++){const v=yMin+(yMax-yMin)*k/4,yy=y(v);g+=`<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="var(--line)" stroke-width="1"/><text x="${L-6}" y="${yy+4}" text-anchor="end" font-size="11" fill="var(--muted)">${fmtTick(v,o.unit)}</text>`}
+  const every=Math.ceil(N/Math.max(4,Math.floor(W/80)));
+  o.labels.forEach((lb,i)=>{if(lb&&(i%every===0))g+=`<text x="${x(i)}" y="${H-9}" text-anchor="middle" font-size="11" fill="var(--muted)">${esc(lb)}</text>`});
+  const showVals=N<=Math.floor(W/45);
+  if(o.type==='bar'){const s=o.series[0],bw=Math.max(1.5,step*.62);
+    s.values.forEach((v,i)=>{if(v==null)return;const yy=y(v);g+=`<rect x="${x(i)-bw/2}" y="${yy}" width="${bw}" height="${Math.max(0,T+ih-yy)}" rx="${Math.min(4,bw/3)}" fill="${s.color}"/>`;
+      if(showVals)g+=`<text x="${x(i)}" y="${yy-4}" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--fg)">${fmtVal(v,o.unit)}</text>`})}
+  if(o.type==='group'){const ns=o.series.length,bw=Math.min(64,step*.7/ns);
+    o.series.forEach((s,si)=>s.values.forEach((v,i)=>{if(v==null)return;const xx=x(i)-bw*ns/2+bw*si,yy=y(v);g+=`<rect x="${xx+4}" y="${yy}" width="${bw-8}" height="${Math.max(0,T+ih-yy)}" rx="7" fill="${s.color}"/><text x="${xx+bw/2}" y="${yy-6}" text-anchor="middle" font-size="12.5" font-weight="800" fill="var(--fg)">${fmtVal(v,o.unit)}%</text><text x="${xx+bw/2}" y="${H-9}" text-anchor="middle" font-size="12" font-weight="800" fill="${s.color}">${esc(s.name)}</text>`}))}
+  if(o.type==='stack'){const bw=Math.max(1.5,step*.62);
+    o.labels.forEach((_,i)=>{let acc=0;o.series.forEach(s=>{const v=s.values[i]||0;if(!v)return;const y1=y(acc+v),y0=y(acc);g+=`<rect x="${x(i)-bw/2}" y="${y1}" width="${bw}" height="${Math.max(0,y0-y1)}" fill="${s.color}"/>`;acc+=v});
+      if(showVals&&acc)g+=`<text x="${x(i)}" y="${y(acc)-4}" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--fg)">${acc}</text>`})}
+  if(o.type==='line'){o.series.forEach(s=>{let d='',pen=false;const pts=[];
+      s.values.forEach((v,i)=>{if(v==null){pen=false;return}d+=(pen?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1);pen=true;pts.push([i,v])});
+      if(pts.length>1&&!o.bands){const area=`M${x(pts[0][0])} ${T+ih}`+pts.map(([i,v])=>`L${x(i)} ${y(v)}`).join('')+`L${x(pts[pts.length-1][0])} ${T+ih}Z`;g+=`<path d="${area}" fill="${s.color}" fill-opacity=".1"/>`}
+      g+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>`;
+      pts.forEach(([i,v],k)=>{const last=k===pts.length-1;const pc=o.bands?level(v).c:s.color;if(N<=45||last)g+=`<circle cx="${x(i)}" cy="${y(v)}" r="${last?5:3.2}" fill="${last?pc:'var(--card)'}" stroke="${pc}" stroke-width="2.2"/>`;
+        if(showVals||last)g+=`<text x="${Math.min(Math.max(x(i),L+14),W-R-16)}" y="${y(v)-10}" text-anchor="middle" font-size="10.5" font-weight="800" fill="var(--fg)">${fmtVal(v,o.unit)}</text>`})})}
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.title||'グラフ')}">${g}</svg>`}
+function fmtTick(v,u){return u==='%'?(Math.round(v*100)/100)+'%':(v>=1000?(v/1000).toFixed(1)+'k':Math.round(v))}
+function fmtVal(v,u){return u==='%'?v.toFixed(Math.min(state.settings.decimals,2)):Math.round(v)}
+function pieSVG(items){
+  const tot=items.reduce((s,i)=>s+i.v,0);if(!tot)return null;
+  const cx=110,cy=110,r=98,ri=60;let a=-Math.PI/2,g='';
+  items.forEach(it=>{if(!it.v)return;const f=it.v/tot;const a2=a+f*Math.PI*2;
+    if(f>=.9999){g+=`<circle cx="${cx}" cy="${cy}" r="${(r+ri)/2}" fill="none" stroke="${it.color}" stroke-width="${r-ri}"/>`}
+    else{const lg=f>.5?1:0,p=(ang,rr)=>[cx+rr*Math.cos(ang),cy+rr*Math.sin(ang)];const[x1,y1]=p(a,r),[x2,y2]=p(a2,r),[x3,y3]=p(a2,ri),[x4,y4]=p(a,ri);
+      g+=`<path d="M${x1} ${y1}A${r} ${r} 0 ${lg} 1 ${x2} ${y2}L${x3} ${y3}A${ri} ${ri} 0 ${lg} 0 ${x4} ${y4}Z" fill="${it.color}" stroke="var(--card)" stroke-width="2.5"/>`}a=a2});
+  g+=`<text x="${cx}" y="${cy-2}" text-anchor="middle" font-size="28" font-weight="800" fill="var(--fg)">${tot}</text><text x="${cx}" y="${cy+18}" text-anchor="middle" font-size="12" fill="var(--muted)">未完了 件</text>`;
+  const leg=items.map(it=>`<div class="row" style="gap:8px;font-size:13px"><i style="width:12px;height:12px;border-radius:3px;background:${it.color};display:inline-block"></i><span style="min-width:48px;font-weight:800">${it.label}</span><span class="num">${it.v}件</span><span class="num sub">${(it.v/tot*100).toFixed(1)}%</span></div>`).join('');
+  return `<div class="row" style="gap:18px;align-items:center"><svg viewBox="0 0 220 220" style="width:180px;max-width:100%;height:auto" role="img" aria-label="未完了理由の構成比">${g}</svg><div class="stack" style="gap:7px">${leg}</div></div>`}
+function chartCard(t,unit,body,ser,tint){return `<div class="card chart"><div class="row"><h2><i style="background:${tint||'var(--blue)'}"></i>${t}</h2><span class="spacer"></span><span class="sub">単位：${unit}</span></div>${ser?`<div class="clegend">${ser.map(s=>`<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join('')}</div>`:''}${body}</div>`}
+const EMPTY='<div class="empty">この期間のデータはまだありません。<br>カレンダーの日付をタップして入力すると表示されます。</div>';
+
+const IC={
+ box:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/><path d="M3 7.5v9L12 21l9-4.5v-9M12 12v9"/></svg>',
+ check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16.5 9.5"/></svg>',
+ x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/></svg>',
+ pct:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 18 18 6"/><circle cx="7.5" cy="7.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/></svg>',
+ door:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16M6 21V4h12v17"/><circle cx="14.5" cy="12.5" r=".8" fill="currentColor"/></svg>',
+ cal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>'};
+function kpi(label,value,unit,color,icon,plain){return `<div class="kpi" style="--k:${color}"><span class="ki">${IC[icon]}</span><div class="k">${label}</div><div class="v ${plain?'plain':''}">${value}${unit?`<small>${unit}</small>`:''}</div></div>`}
+const TABICON={
+ calendar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+ analysis:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 20v-8M11 20V5M17 20v-6M3 20h18"/></svg>',
+ history:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></svg>',
+ config:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></svg>'};
+const TABS=[['calendar','カレンダー'],['analysis','分析'],['history','履歴'],['config','設定']];
+const LOGO='<span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"><path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/><path d="M3 7.5v9L12 21l9-4.5v-9"/><path d="m8.5 14 2 2 4-4.5"/></svg></span>';
+function title(t){return `<div class="top">${LOGO}<h1>${t}</h1></div>`}
+
+function render(){
+  document.getElementById('tabbar').innerHTML=TABS.map(([k,l])=>`<button class="tab" data-tab="${k}" ${ui.tab===k?'aria-current="page"':''}>${TABICON[k]}<span>${l}</span></button>`).join('');
+  const demo=state.demo?`<div class="banner row"><span><b>サンプルデータを表示中</b>　使い方を確認したら、消して自分の記録を始められます。</span><span class="spacer"></span><button class="btn primary" data-act="cleardemo">サンプルを消して始める</button></div>`:'';
+  const body=ui.tab==='calendar'?viewCalendar():ui.tab==='analysis'?viewAnalysis():ui.tab==='history'?viewHistory():ui.tab==='privacy'?viewPrivacy():viewSettings();
+  document.getElementById('app').innerHTML=`<div class="stack">${demo}${body}</div>`}
+
+function legendHTML(){const s=state.settings;return `<div class="legend"><span class="lg">C1＝C1だけ／C2＝C1＋C2合算</span><span class="lg"><i style="background:var(--good)"></i>良好 ${lim(s.goodLimit)}%以下</span><span class="lg"><i style="background:var(--warn)"></i>注意 ${lim(s.warnLimit)}%以下</span><span class="lg"><i style="background:var(--bad)"></i>要改善 ${lim(s.warnLimit)}%超</span><span class="lg"><i style="background:var(--c1)"></i>C1</span><span class="lg"><i style="background:var(--c2)"></i>C2</span></div>`}
+
+function viewCalendar(){
+  const m=ui.month,dates=monthDates(m);
+  const first=new Date(m.getFullYear(),m.getMonth(),1),last=new Date(m.getFullYear(),m.getMonth()+1,0);
+  const start=weekStartOf(first),end=addDays(weekStartOf(last),6),ws=0;
+  const p=period(dates),L=level(p.dcr);
+  let h=title(APP_NAME)+`<div class="calhead"><button class="iconbtn" data-act="prevm" aria-label="前の月">‹</button><span class="title num">${m.getFullYear()}年${m.getMonth()+1}月</span><button class="iconbtn" data-act="nextm" aria-label="次の月">›</button><span class="spacer"></span><button class="btn" data-act="today">今日</button></div>`;
+  h+=`<div class="hero" style="--s:${L.c}"><div><div class="k">${m.getMonth()+1}月のDCR（未配達率）</div><div class="big">${pct(p.dcr)}</div><div class="pill"><i></i>${p.workdays?L.label:'記録なし'}</div></div>
+    <div class="mini"><div><span>配達予定</span><b>${n(p.planned)}</b></div><div><span>完了</span><b>${n(p.comp)}</b></div><div><span>未完了</span><b>${n(p.inc)}</b></div><div><span>C1のDCR</span><b>${pct(p.c1dcr)}</b></div><div><span>稼働日数</span><b>${p.workdays}日</b></div><div><span>多い理由</span><b>${p.top?p.top.label+' '+p.reasons[p.top.k]+'件':'なし'}</b></div></div></div>`;
+  h+=legendHTML();
+  h+=`<div class="card" style="padding:10px"><div class="grid">`;
+  for(let i=0;i<7;i++){const dw=(ws+i)%7;h+=`<div class="dow ${dw===0?'sun':dw===6?'sat':''}">${DOW[dw]}</div>`}
+  for(let w=start;w<=end;w=addDays(w,7)){
+    const wd=daysBetween(w,addDays(w,6));
+    wd.forEach(s=>{const d=parseD(s),a=day(s),out=d.getMonth()!==m.getMonth(),lv=level(a.working?a.dcr:null);
+      const p1=a.c1?a.c1.planned:0,p2=a.c2?a.c2.planned:0;
+      h+=`<button class="day ${a.working?'has':''} ${out?'out':''} ${s===ymd(TODAY)?'today':''}" style="--s:${lv.c}" data-day="${s}" aria-label="${jpDate(s)} ${a.working?'C1 '+pct(a.c1dcr)+'、C2（合算） '+pct(a.c2dcr)+'、'+lv.label:'未入力'}"><span class="d ${d.getDay()===0?'sun':d.getDay()===6?'sat':''}">${d.getDate()}</span>`+
+      (a.working?`<span class="l num">予<b>${a.planned}</b> 未<b style="color:var(--bad)">${a.inc}</b></span>${cv(1,a.c1dcr)}${cv(2,a.c2dcr)}<span class="bar">${p1?`<span style="flex:${p1};background:var(--c1)"></span>`:''}${p2?`<span style="flex:${p2};background:var(--c2)"></span>`:''}</span>`:a.entered?`<span class="l">0件</span>`:'')+`</button>`});
+    const wp=period(wd),wl=level(wp.dcr);
+    h+=`<div class="week num">${scoreChip(ymd(w))}${wp.workdays?`<span class="wchip s" style="--s:${wl.c}">週DCR（日〜土） <b>${pct(wp.dcr)}</b></span><span class="wchip">未完了 <b>${wp.inc}</b>/${wp.planned}件</span><span class="wchip">稼働 <b>${wp.workdays}</b>日</span>`:'<span class="wchip">この週の記録なし</span>'}</div>`}
+  h+=`</div></div>`;
+  return h}
+function cv(c,v){if(v==null)return `<span class="cv" style="--cc:var(--c${c})"><i>C${c}</i><span style="color:var(--muted)">—</span></span>`;const l=level(v);return `<span class="cv" style="--cc:var(--c${c});--lv:${l.c}"><i>C${c}</i><span>${pct(v)}</span></span>`}
+
+function rangeDates(){
+  if(ui.range==='7d')return daysBetween(addDays(TODAY,-6),TODAY);
+  if(ui.range==='30d')return daysBetween(addDays(TODAY,-29),TODAY);
+  if(ui.range==='month')return monthDates(ui.aMonth);
+  return daysBetween(new Date(ui.aYear,0,1),new Date(ui.aYear,11,31))}
+function viewAnalysis(){
+  const dates=rangeDates(),p=period(dates),L=level(p.dcr);
+  let nav='';
+  if(ui.range==='month')nav=`<button class="iconbtn" data-act="aprev" aria-label="前へ">‹</button><b class="num">${ui.aMonth.getFullYear()}年${ui.aMonth.getMonth()+1}月</b><button class="iconbtn" data-act="anext" aria-label="次へ">›</button>`;
+  if(ui.range==='year')nav=`<button class="iconbtn" data-act="aprev" aria-label="前へ">‹</button><b class="num">${ui.aYear}年</b><button class="iconbtn" data-act="anext" aria-label="次へ">›</button>`;
+  let h=title('分析')+`<div class="row"><div class="seg" role="group" aria-label="期間">${[['7d','7日'],['30d','30日'],['month','月別'],['year','年間']].map(([k,l])=>`<button data-range="${k}" aria-pressed="${ui.range===k}">${l}</button>`).join('')}</div><span class="spacer"></span>${nav}</div>`;
+  h+=`<div class="kpis">${kpi('総配達予定数',n(p.planned),'件','var(--blue)','box',true)}${kpi('総配達完了数',n(p.comp),'件','var(--green)','check')}${kpi('総未完了数',n(p.inc),'件','var(--red)','x')}${kpi('DCR（未配達率）'+(p.workdays?'・'+L.label:''),pct(p.dcr),'',L.c,'pct')}${kpi('C1のDCR（C1だけ）',pct(p.c1dcr),'',level(p.c1dcr).c,'pct')}${kpi('稼働日数',p.workdays,'日','var(--purple)','cal',true)}</div>
+   <div class="sub">DCR（未配達率）＝未完了÷配達予定数。C1はC1だけ、C2はC1とC2を合算して計算します。週は日曜C1〜土曜C2、月・年も件数を合算してから計算します。</div>`;
+  const has=p.workdays>0,yr=ui.range==='year';
+  const dl=dates.map(s=>{const d=parseD(s);return yr?(d.getDate()===1?(d.getMonth()+1)+'月':''):(d.getMonth()+1)+'/'+d.getDate()});
+  const dayVals=f=>p.days.map(d=>d.working?f(d):null);
+  const weeks=[];dates.forEach(s=>{const w=ymd(weekStartOf(parseD(s)));let g=weeks.find(x=>x.k===w);if(!g)weeks.push(g={k:w,d:[]});g.d.push(s)});
+  const months=[];dates.forEach(s=>{const k=s.slice(0,7);let g=months.find(x=>x.k===k);if(!g)months.push(g={k,d:[]});g.d.push(s)});
+  const wp=weeks.map(w=>period(w.d)),mp=months.map(m=>period(m.d));
+  const wl=weeks.map(w=>{const d=parseD(w.k);return (d.getMonth()+1)+'/'+d.getDate()+'週'}),ml=months.map(m=>+m.k.slice(5)+'月');
+  const bandLeg=[{name:'良好',color:'var(--good)'},{name:'注意',color:'var(--warn)'},{name:'要改善',color:'var(--bad)'}];
+  const C={plan:'var(--blue)',comp:'var(--green)',dcr:'var(--purple)'};
+  const A=[],B=[];
+  A.push(chartCard('日別配達予定数','件',has?chartSVG({type:'bar',labels:dl,series:[{name:'配達予定数',color:C.plan,values:dayVals(d=>d.planned)}],unit:'件'}):EMPTY,[{name:'配達予定数',color:C.plan}],C.plan));
+  A.push(chartCard('日別配達完了数','件',has?chartSVG({type:'bar',labels:dl,series:[{name:'配達完了数',color:C.comp,values:dayVals(d=>d.comp)}],unit:'件'}):EMPTY,[{name:'配達完了数',color:C.comp}],C.comp));
+  A.push(chartCard('日別DCR（C1＋C2合算）','%',has?chartSVG({type:'line',bands:true,labels:dl,series:[{name:'C2（合算）',color:C.dcr,values:dayVals(d=>d.dcr)}],unit:'%'}):EMPTY,bandLeg,C.dcr));
+  A.push(chartCard('日別DCR（C1だけ）','%',has?chartSVG({type:'line',bands:true,labels:dl,series:[{name:'C1',color:'var(--c1)',values:dayVals(d=>d.c1dcr)}],unit:'%'}):EMPTY,bandLeg,'var(--c1)'));
+  A.push(chartCard('週別DCR（日曜C1〜土曜C2）','%',has?chartSVG({type:'line',bands:true,labels:wl,series:[{name:'週別DCR',color:C.dcr,values:wp.map(x=>x.dcr)}],unit:'%'}):EMPTY,bandLeg,C.dcr));
+  A.push(chartCard('月別DCR（未配達率）','%',has?chartSVG({type:'line',bands:true,labels:ml,series:[{name:'月別DCR',color:C.dcr,values:mp.map(x=>x.dcr)}],unit:'%'}):EMPTY,bandLeg,C.dcr));
+  const rs=REASONS.map(r=>({name:r.label,color:r.color}));
+  const stackLabels=yr?ml:dl,stackSrc=yr?mp.map(x=>x.reasons):p.days.map(d=>d.reasons);
+  B.push(chartCard('未完了理由別の件数','件',has&&p.inc?chartSVG({type:'stack',labels:stackLabels,series:REASONS.map(r=>({name:r.label,color:r.color,values:stackSrc.map(x=>x[r.k])})),unit:'件'}):EMPTY,rs,'var(--r-cu)'));
+  B.push(chartCard('C1・C2別のDCR','%',(p.c1dcr!=null||p.dcr!=null)?chartSVG({type:'group',labels:[''],series:[{name:'C1だけ',color:'var(--c1)',values:[p.c1dcr]},{name:'C2だけ',color:'var(--c2)',values:[p.c2only]},{name:'C1＋C2',color:'var(--purple)',values:[p.dcr]}],unit:'%'}):EMPTY,[{name:'C1だけ',color:'var(--c1)'},{name:'C2だけ',color:'var(--c2)'},{name:'C1＋C2合算',color:'var(--purple)'}],'var(--c1)'));
+  const pie=pieSVG(REASONS.map(r=>({label:r.label,color:r.color,v:p.reasons[r.k]})));
+  B.push(chartCard('未完了理由の構成比','件・%',pie||'<div class="empty">この期間に未完了はありません。</div>',null,'var(--r-bc)'));
+  h+=`<div class="sectiontitle" style="--t:var(--blue)">配達実績分析</div><div class="charts">${A.join('')}</div><div class="sectiontitle" style="--t:var(--r-cu)">未完了分析</div><div class="charts">${B.join('')}</div>`;
+  return h}
+
+function viewHistory(){
+  const all=Object.values(state.records);
+  const months=[...new Set(all.map(r=>r.date.slice(0,7)))].sort().reverse();
+  let rows=all.filter(r=>ui.histMonth==='all'||r.date.startsWith(ui.histMonth));
+  rows.sort((a,b)=>(a.date<b.date?-1:a.date>b.date?1:a.cycle-b.cycle)*(ui.histDesc?-1:1));
+  let h=title('履歴')+`<div class="row"><select id="histMonth" class="btn" aria-label="年月で絞り込み"><option value="all">すべての期間</option>${months.map(m=>`<option value="${m}" ${ui.histMonth===m?'selected':''}>${m.slice(0,4)}年${+m.slice(5)}月</option>`).join('')}</select>
+   <button class="btn" data-act="histsort">${ui.histDesc?'新しい順 ↓':'古い順 ↑'}</button><span class="spacer"></span><button class="btn" data-act="csv">CSVエクスポート</button></div>${legendHTML()}`;
+  if(!rows.length)return h+`<div class="card empty">記録はまだありません。カレンダーの日付をタップして入力してください。</div>`;
+  const show=rows.slice(0,400);
+  h+=`<div class="list">${show.map(r=>{const c=cyc(r),dd=day(r.date),v=r.cycle===1?(r.planned>0?c.dcr:null):(r.planned>0?dd.dcr:null),lv=level(v);return `<button class="item" style="--s:${lv.c}" data-day="${r.date}">
+     <div class="row" style="gap:8px"><b class="num">${jpDate(r.date)}</b><span class="pill c${r.cycle}">C${r.cycle}</span><span class="st" style="--s:${lv.c}">${lv.label}</span><span class="spacer"></span><span class="sub">${r.cycle===1?'C1だけ':'C1＋C2合算'}</span><b class="num" style="color:${lv.c};font-size:16px">${pct(v)}</b></div>
+     <div class="row num" style="gap:12px;font-size:14px;margin-top:3px"><span>予定 <b>${r.planned}</b></span><span>完了 <b style="color:var(--green)">${c.comp}</b></span><span>未完了 <b style="color:var(--red)">${c.inc}</b></span>${r.cycle===2&&dd.c1?`<span class="spacer"></span><span class="sub">合算 予定${dd.planned}・未完了${dd.inc}</span>`:''}</div>
+     <div class="chips">${REASONS.map(x=>`<span class="chip ${r[x.k]?'on':''}" style="--rc:${x.color}">${x.label} ${r[x.k]}</span>`).join('')}</div></button>`}).join('')}</div>`;
+  if(rows.length>show.length)h+=`<div class="sub">最新${show.length}件を表示中。年月で絞り込むと他の記録も見られます。</div>`;
+  return h}
+
+function viewSettings(){
+  const s=state.settings;
+  const tot=Math.max(s.warnLimit*1.5,s.warnLimit+1);
+  return title('設定')+`<div class="two"><div class="stack">
+  <div class="card"><h2>色分けの目安（DCR・未配達率）</h2><p class="sub" style="margin:4px 0 0">カレンダーや履歴の色はこの基準で変わります。</p>
+   <div class="scale"><span style="flex:${s.goodLimit};background:var(--good)"></span><span style="flex:${Math.max(.05,s.warnLimit-s.goodLimit)};background:var(--warn)"></span><span style="flex:${Math.max(.05,tot-s.warnLimit)};background:var(--bad)"></span></div>
+   <div class="thr"><span class="st" style="--s:var(--good)">良好</span><label for="thrGood">この値以下</label><span class="row" style="gap:4px"><input id="thrGood" inputmode="decimal" value="${lim(s.goodLimit)}" data-thr="goodLimit">%</span></div>
+   <div class="thr"><span class="st" style="--s:var(--warn)">注意</span><label for="thrWarn">この値以下</label><span class="row" style="gap:4px"><input id="thrWarn" inputmode="decimal" value="${lim(s.warnLimit)}" data-thr="warnLimit">%</span></div>
+   <div class="thr"><span class="st" style="--s:var(--bad)">要改善</span><span>${lim(s.warnLimit)}%より多い</span><span></span></div></div>
+  <div class="card stack" style="gap:12px"><h2>表示</h2><p class="sub" style="margin:0">週は日曜日始まりです（日曜C1〜土曜C2で週DCRを計算）。</p>
+   <div class="row"><span style="flex:1">外観</span><div class="seg">${[['system','自動'],['light','ライト'],['dark','ダーク']].map(([k,l])=>`<button data-ap="${k}" aria-pressed="${s.appearance===k}">${l}</button>`).join('')}</div></div>
+   <div class="row"><span style="flex:1">小数点以下の桁数</span><div class="seg">${[0,1,2,3].map(d=>`<button data-dec="${d}" aria-pressed="${s.decimals===d}">${d}</button>`).join('')}</div></div></div>
+  </div><div class="stack">
+  ${IOS?`<div class="card stack" style="gap:10px"><h2>データ引き継ぎ（iCloud）</h2>
+   <div class="row" style="color:var(--blue);font-weight:800">☁︎ 自動バックアップ：オン</div>
+   <div class="row"><span style="flex:1">保存先フォルダ</span><span class="sub">iCloud Drive › ハコログ</span></div>
+   <div class="row"><span style="flex:1">最終バックアップ</span><span class="sub num">10/31 21:04</span></div>
+   <div class="row"><button class="btn primary">今すぐバックアップ</button><button class="btn">iCloud Driveから復元</button></div>
+   <p class="sub" style="margin:0">記録を変更するたびに「${BACKUP_NAME}」をiCloud Driveに自動保存。新しいiPhone・iPadやウェブ版で読み込めば、データを引き継げます。</p></div>
+  <div class="card stack" style="gap:10px"><h2>バックアップ・CSV</h2><div class="row"><button class="btn">バックアップを書き出す（JSON）</button><button class="btn">CSVを書き出す</button><button class="btn">ファイルから復元</button></div></div>`:`
+  <div class="card stack" style="gap:10px"><h2>データの引き継ぎ・バックアップ</h2>
+   <p class="sub" style="margin:0">iPhone・iPad版の「iCloud Drive自動バックアップ」で保存したファイル（${BACKUP_NAME}）をここで読み込めます。ここで書き出したファイルをアプリで復元することもできます。</p>
+   <div class="row"><button class="btn primary" data-act="exportjson">バックアップを書き出す（JSON）</button><button class="btn" data-act="csv">CSVを書き出す</button></div>
+   <div class="row"><label class="btn" for="importfile" style="display:inline-flex;align-items:center">ファイルから復元（JSON・CSV）</label><input id="importfile" type="file" accept=".json,.csv,application/json,text/csv,text/plain" hidden><button class="btn" data-act="pasteimport">貼り付けて復元</button></div>
+   <p class="sub" style="margin:0">ウェブ版のデータはこのブラウザの中だけに保存されます。ブラウザの履歴削除で消えるため、ときどき書き出して保存してください。</p></div>`}
+  <div class="card stack" style="gap:10px"><h2>データ管理</h2><div class="row"><button class="btn" data-act="sample">テストデータを読み込む</button><button class="btn danger" data-act="wipe">全データを削除</button></div></div>
+  <div class="card"><h2>ハコログについて</h2><p class="sub" style="margin:6px 0">バージョン 1.0${IOS?'':'（ウェブ版）'}　© 2026 天然くま本舗</p><button class="btn ghost" data-act="privacy" style="padding-left:0">プライバシーポリシー・サポート</button></div>
+  </div></div>`}
+
+function viewPrivacy(){
+  return title('プライバシーポリシー')+`<div class="card prose">
+  <p><b>ハコログ</b>（以下「本アプリ」）は、天然くま本舗が提供する配達実績の記録アプリです。</p>
+  <p><b>1. 収集する情報</b><br>本アプリは個人を特定できる情報を収集しません。入力した配達実績は、お使いの端末（ウェブ版はブラウザ）の中だけに保存されます。開発者のサーバーへ送信されることはありません。</p>
+  <p><b>2. iCloud Driveへのバックアップ</b><br>iPhone・iPad版では、利用者が自分で選んだiCloud Driveのフォルダにバックアップファイルを保存できます。このファイルは利用者のiCloudアカウントに保存され、開発者が見ることはできません。</p>
+  <p><b>3. 第三者への提供・広告・解析</b><br>本アプリは第三者への情報提供、広告配信、利用状況の解析を行いません。</p>
+  <p><b>4. データの削除</b><br>設定の「全データを削除」、またはアプリの削除でいつでも消去できます。</p>
+  <p><b>5. お問い合わせ</b><br>kumachannel36@gmail.com</p><p class="sub">制定日：2026年11月7日</p></div>
+  <div class="card prose"><h2>サポート</h2><p>不具合やご要望は上記メールアドレスまでお送りください。端末名・OSのバージョン・症状が分かると早く対応できます。</p></div>
+  <div><button class="btn" data-act="back">設定に戻る</button></div>`}
+
+function openDay(date){
+  const draft={1:{...(rec(date,1)||blank(date,1))},2:{...(rec(date,2)||blank(date,2))}};
+  const had={1:!!rec(date,1),2:!!rec(date,2)};
+  const m=document.getElementById('modal');
+  function cycHTML(c){const r=draft[c];return `<div class="card cyc" data-c="${c}"><div class="hd c${c}">C${c}（サイクル${c}）<span class="st" id="st${c}"></span></div><div class="bd">
+    ${field(c,'planned','配達予定数','',r.planned,'var(--blue)',true)}
+    ${REASONS.map(x=>field(c,x.k,x.label,x.desc,r[x.k],x.color)).join('')}
+    <div class="calc" id="calc${c}"></div><div class="err" id="err${c}" hidden></div>
+    ${had[c]?`<div style="margin-top:10px"><button class="btn danger" data-del="${c}">C${c}の記録を削除</button></div>`:''}</div></div>`}
+  function field(c,k,l,d,v,col,plan){return `<div class="field ${plan?'plan':''}" style="--rc:${col}"><label for="f${c}${k}">${plan?'':'<i class="rdot"></i>'}<span><b>${l}</b>${d?`<small>${d}</small>`:''}</span></label><div class="stepper"><button data-step="-1" data-c="${c}" data-k="${k}" aria-label="${l}を減らす">−</button><input id="f${c}${k}" inputmode="numeric" pattern="[0-9]*" value="${v}" data-c="${c}" data-k="${k}"><button data-step="1" data-c="${c}" data-k="${k}" aria-label="${l}を増やす">＋</button></div></div>`}
+  m.innerHTML=`<div class="overlay" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-label="${jpDate(date)}の入力">
+    <div class="row" style="margin-bottom:10px"><button class="btn ghost" data-x="cancel">キャンセル</button><span class="spacer"></span><h2 class="num">${parseD(date).getFullYear()}年${jpDate(date)}</h2><span class="spacer"></span><button class="btn primary" data-x="save" id="savebtn">保存</button></div>
+    <div class="cycles">${cycHTML(1)}${cycHTML(2)}</div>
+    <div class="card" style="margin-top:12px"><div class="row"><h2>この日の合計（C1＋C2）</h2><span class="spacer"></span><span id="stT"></span></div><div class="calc" id="calcT"></div></div></div></div>`;
+  function upd(){let ok=true;
+    const x1=cyc(draft[1]),x2=cyc(draft[2]);
+    const P=draft[1].planned+draft[2].planned,I=x1.inc+x2.inc;
+    const v1=draft[1].planned>0?x1.dcr:null,v2=draft[2].planned>0?rate(I,P):null;
+    [[1,x1,v1,'DCR（C1だけ）'],[2,x2,v2,'DCR（C1＋C2）']].forEach(([c,x,v,lab])=>{const r=draft[c];const bad=x.inc>r.planned;if(bad)ok=false;
+      document.getElementById('calc'+c).innerHTML=calcBox({inc:x.inc,comp:x.comp,dcr:v},lab);const lv=level(v);const st=document.getElementById('st'+c);st.style.setProperty('--s',lv.c);st.textContent=r.planned>0?lv.label+' '+pct(v):'未入力';
+      const e=document.getElementById('err'+c);e.hidden=!bad;e.textContent=bad?'未完了の合計（'+x.inc+'件）が配達予定数を超えています':''});
+    document.getElementById('calcT').innerHTML=calcBox({inc:I,comp:P-I,dcr:rate(I,P)},'1日のDCR');
+    document.getElementById('stT').innerHTML=P?stPill(rate(I,P)):'';
+    document.getElementById('savebtn').disabled=!ok}
+  function calcBox(x,lab){const lv=level(x.dcr);return `<div style="--c:var(--red)"><span>未完了</span><b>${x.inc}</b></div><div style="--c:var(--green)"><span>完了</span><b>${x.comp}</b></div><div style="--c:${lv.c}"><span>${lab||'DCR'}</span><b>${pct(x.dcr)}</b></div>`}
+  upd();
+  const ov=document.getElementById('ov');
+  ov.addEventListener('input',e=>{const t=e.target;if(t.dataset.k){const v=t.value.replace(/[^0-9]/g,'');t.value=v;draft[t.dataset.c][t.dataset.k]=v===''?0:parseInt(v,10);upd()}});
+  ov.addEventListener('click',e=>{
+    if(e.target===ov){close();return}
+    const b=e.target.closest('button');if(!b)return;
+    if(b.dataset.step){const c=b.dataset.c,k=b.dataset.k;draft[c][k]=Math.max(0,draft[c][k]+(+b.dataset.step));document.getElementById('f'+c+k).value=draft[c][k];upd()}
+    if(b.dataset.x==='cancel')close();
+    if(b.dataset.del){delete state.records[key(date,+b.dataset.del)];save();close();render();toast('C'+b.dataset.del+'の記録を削除しました')}
+    if(b.dataset.x==='save'){[1,2].forEach(c=>{const r=draft[c];if(r.planned===0&&inc(r)===0)delete state.records[key(date,c)];else state.records[key(date,c)]={...r}});save();close();render();toast('保存しました')}});
+  function close(){m.innerHTML=''}
+  setTimeout(()=>{const f=document.getElementById('f1planned');if(f&&!params.get('shot'))f.focus()},50)}
+function blank(date,c){return{date,cycle:c,planned:0,cu:0,uta:0,nsl:0,bc:0,other:0}}
+
+function csvText(){return '﻿'+['日付,サイクル,配達予定数,CU,UTA,NSL,BC,その他未完了',...toBackup().records.map(r=>[r.date,'C'+r.cycle,r.planned,r.cu,r.uta,r.nsl,r.bc,r.other].join(','))].join('\r\n')}
+function parseCSV(t){t=t.replace(/^﻿/,'');const lines=t.split(/\r?\n/).filter(l=>l.trim());if(!lines.length)throw new Error('CSVが空です');
+  const start=/日付|date/i.test(lines[0])?1:0;const records=[],errors=[];
+  lines.slice(start).forEach((l,i)=>{const c=l.split(',').map(x=>x.trim().replace(/^"|"$/g,''));
+    const r=validate({date:c[0],cycle:c[1],planned:c[2],cu:c[3],uta:c[4],nsl:c[5],bc:c[6],other:c[7]});
+    if(typeof r==='string')errors.push((i+1+start)+'行目: '+r);else if(r.planned||inc(r))records.push(r)});
+  return{records,errors,settings:null,scorecards:[]}}
+function parseAny(text){const t=text.trim().replace(/^﻿/,'');
+  if(t.startsWith('{')){const j=JSON.parse(t);const r=fromBackup(j);return{records:Object.values(r.records).filter(x=>x.planned||inc(x)),errors:r.errors,settings:r.settings,scorecards:cleanCards(j.scorecards)}}
+  return parseCSV(t)}
+function showExport(kind){
+  const text=kind==='json'?JSON.stringify(toBackup(),null,2):csvText();
+  const name=kind==='json'?BACKUP_NAME:'ハコログ_'+ymd(TODAY)+'.csv';
+  const m=document.getElementById('modal');
+  m.innerHTML=`<div class="overlay" id="ov"><div class="sheet stack" role="dialog" aria-modal="true" aria-label="書き出し"><div class="row"><h2>${kind==='json'?'バックアップ（JSON）':'CSV'}を書き出す</h2><span class="spacer"></span><button class="btn ghost" data-x="close">閉じる</button></div>
+   <p class="sub" style="margin:0">「ファイルを保存」が使えない画面では、「テキストをコピー」してメモやファイルに貼り付けて保存してください。</p>
+   <div class="row"><button class="btn primary" data-x="dl">ファイルを保存</button><button class="btn" data-x="copy">テキストをコピー</button></div>
+   <textarea id="exptext" readonly aria-label="書き出したデータ">${esc(text)}</textarea></div></div>`;
+  const ov=document.getElementById('ov');
+  ov.addEventListener('click',e=>{if(e.target===ov){m.innerHTML='';return}const b=e.target.closest('button');if(!b)return;
+    if(b.dataset.x==='close')m.innerHTML='';
+    if(b.dataset.x==='dl'){if(window.claude&&window.claude.use){window.claude.use('downloads').then(dl=>{if(!dl){toast('この画面では保存できません。コピーを使ってください');return}return dl.save({filename:name,data:text}).then(()=>toast('保存しました'),err=>{if(err&&err.code!=='declined')toast('保存できませんでした。コピーを使ってください')})});return}
+      try{const blob=new Blob([text],{type:kind==='json'?'application/json':'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();toast('保存を開始しました')}catch(err){toast('この画面では保存できません。コピーを使ってください')}}
+    if(b.dataset.x==='copy'){const ta=document.getElementById('exptext');navigator.clipboard.writeText(text).then(()=>toast('コピーしました'),()=>{ta.focus();ta.select();toast('選択しました。共有メニューからコピーしてください')})}})}
+function showImport(parsed){
+  const m=document.getElementById('modal');
+  const dup=parsed.records.filter(r=>state.records[key(r.date,r.cycle)]).length,fresh=parsed.records.length-dup;
+  m.innerHTML=`<div class="overlay" id="ov"><div class="sheet stack" role="dialog" aria-modal="true" aria-label="復元"><div class="row"><h2>データを復元</h2><span class="spacer"></span><button class="btn ghost" data-x="close">キャンセル</button></div>
+   <div class="card num"><div>読み込めた記録：<b>${parsed.records.length}</b>件</div><div>新しい記録：<b>${fresh}</b>件</div><div>同じ日付・サイクルの記録：<b>${dup}</b>件</div>${(parsed.scorecards||[]).length?`<div>週間スコアカード：<b>${parsed.scorecards.length}</b>週分</div>`:''}${parsed.errors.length?`<div class="err">読み込めなかった行：${parsed.errors.length}件<br>${parsed.errors.slice(0,5).map(esc).join('<br>')}</div>`:''}</div>
+   ${parsed.records.length||(parsed.scorecards||[]).length?`<p class="sub" style="margin:0">同じ日付・サイクル（スコアカードは同じ週）の記録をどうしますか？</p><div class="row"><button class="btn primary" data-x="over">上書きして復元</button><button class="btn" data-x="skip">今のデータを残して復元</button></div>`:''}</div></div>`;
+  const ov=document.getElementById('ov');
+  ov.addEventListener('click',e=>{if(e.target===ov){m.innerHTML='';return}const b=e.target.closest('button');if(!b)return;
+    if(b.dataset.x==='close')m.innerHTML='';
+    if(b.dataset.x==='over'||b.dataset.x==='skip'){
+      if(state.demo){state.records={};state.demo=false}
+      let c=0;parsed.records.forEach(r=>{const k=key(r.date,r.cycle);if(state.records[k]&&b.dataset.x==='skip')return;state.records[k]=r;c++});
+      (parsed.scorecards||[]).forEach(sc=>{if(state.scorecards[sc.weekStart]&&b.dataset.x==='skip')return;state.scorecards[sc.weekStart]=sc});saveScorecards();
+      if(parsed.settings){state.settings=parsed.settings;applyTheme()}
+      save();m.innerHTML='';render();toast(c+'件を復元しました')}})}
+function showPaste(){
+  const m=document.getElementById('modal');
+  m.innerHTML=`<div class="overlay" id="ov"><div class="sheet stack" role="dialog" aria-modal="true" aria-label="貼り付けて復元"><div class="row"><h2>貼り付けて復元</h2><span class="spacer"></span><button class="btn ghost" data-x="close">キャンセル</button></div>
+  <p class="sub" style="margin:0">バックアップ（JSON）またはCSVの中身を貼り付けてください。</p><textarea id="pastearea" aria-label="貼り付け欄"></textarea><div class="err" id="perr" hidden></div><div><button class="btn primary" data-x="go">読み込む</button></div></div></div>`;
+  const ov=document.getElementById('ov');
+  ov.addEventListener('click',e=>{if(e.target===ov){m.innerHTML='';return}const b=e.target.closest('button');if(!b)return;
+    if(b.dataset.x==='close')m.innerHTML='';
+    if(b.dataset.x==='go'){try{showImport(parseAny(document.getElementById('pastearea').value))}catch(err){const pe=document.getElementById('perr');pe.hidden=false;pe.textContent='読み込めませんでした：'+err.message}}})}
+function confirmBox(t,text,okLabel,fn){
+  const m=document.getElementById('modal');
+  m.innerHTML=`<div class="overlay" id="ov"><div class="sheet stack" role="alertdialog" aria-modal="true" aria-label="${esc(t)}" style="max-width:460px"><h2>${esc(t)}</h2><p style="margin:0">${esc(text)}</p><div class="row"><button class="btn" data-x="no">キャンセル</button><span class="spacer"></span><button class="btn primary" style="background:var(--bad)" data-x="yes">${esc(okLabel)}</button></div></div></div>`;
+  const ov=document.getElementById('ov');
+  ov.addEventListener('click',e=>{if(e.target===ov||e.target.dataset.x==='no'){m.innerHTML='';return}if(e.target.dataset.x==='yes'){m.innerHTML='';fn()}})}
+
+// サンプルデータ（アプリと同じ計算式）
+function sampleRecords(){
+  let seed=20261107;const rnd=()=>{seed=(seed*1103515245+12345)%2147483648;return seed/2147483648};
+  const out={};
+  for(let d=addDays(TODAY,-150);d<=TODAY;d=addDays(d,1)){
+    if(d.getDay()===0||(d.getDay()===3&&rnd()<.5))continue;
+    [1,2].forEach(c=>{if(c===2&&rnd()<.12)return;
+      const planned=c===1?Math.round(95+rnd()*45):Math.round(55+rnd()*35);
+      const r={date:ymd(d),cycle:c,planned,cu:Math.floor(rnd()*rnd()*(c===1?4:3)),uta:rnd()<.15?1:0,nsl:rnd()<.12?1:0,bc:rnd()<(c===1?.18:.05)?1+Math.floor(rnd()*2):0,other:rnd()<.06?1:0};
+      out[key(r.date,c)]=r})}
+  return out}
+
+document.addEventListener('click',e=>{
+  if(document.getElementById('modal').innerHTML)return;
+  const t=e.target.closest('[data-tab],[data-score],[data-day],[data-act],[data-range],[data-ap],[data-dec]');if(!t)return;
+  if(t.dataset.tab){ui.tab=t.dataset.tab;setHash(ui.tab);render();window.scrollTo(0,0);return}
+  if(t.dataset.score){openScore(t.dataset.score);return}
+  if(t.dataset.day){openDay(t.dataset.day);return}
+  if(t.dataset.range){ui.range=t.dataset.range;render();return}
+  if(t.dataset.ap){state.settings.appearance=t.dataset.ap;applyTheme();save();render();return}
+  if(t.dataset.dec){state.settings.decimals=+t.dataset.dec;save();render();return}
+  const a=t.dataset.act;
+  if(a==='prevm')ui.month=new Date(ui.month.getFullYear(),ui.month.getMonth()-1,1);
+  if(a==='nextm')ui.month=new Date(ui.month.getFullYear(),ui.month.getMonth()+1,1);
+  if(a==='today')ui.month=new Date(TODAY.getFullYear(),TODAY.getMonth(),1);
+  if(a==='aprev'){if(ui.range==='month')ui.aMonth=new Date(ui.aMonth.getFullYear(),ui.aMonth.getMonth()-1,1);else ui.aYear--}
+  if(a==='anext'){if(ui.range==='month')ui.aMonth=new Date(ui.aMonth.getFullYear(),ui.aMonth.getMonth()+1,1);else ui.aYear++}
+  if(a==='histsort')ui.histDesc=!ui.histDesc;
+  if(a==='csv'){showExport('csv');return}
+  if(a==='exportjson'){showExport('json');return}
+  if(a==='pasteimport'){showPaste();return}
+  if(a==='privacy'){ui.tab='privacy';setHash('privacy')}
+  if(a==='back'){ui.tab='config';setHash('config')}
+  if(a==='cleardemo'){state.records={};state.demo=false;save();toast('サンプルを消しました')}
+  if(a==='sample'){confirmBox('テストデータを読み込みますか？','今のデータは残したまま、過去150日分のテストデータを追加します（同じ日付・サイクルは上書き）。','読み込む',()=>{Object.assign(state.records,sampleRecords());save();render();toast('テストデータを読み込みました')});return}
+  if(a==='wipe'){confirmBox('すべてのデータを削除しますか？','配達実績と週間スコアカードがすべて消えます。この操作は取り消せません。先にバックアップを書き出すことをおすすめします。','すべて削除',()=>{state.records={};state.scorecards={};saveScorecards();state.demo=false;save();render();toast('すべてのデータを削除しました')});return}
+  render()});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset.thr){const v=parseFloat(String(t.value).replace(/[^0-9.]/g,''));if(!Number.isFinite(v)||v<0||v>100){toast('0〜100の数字で入力してください');render();return}
+    state.settings[t.dataset.thr]=Math.round(v*10)/10;if(state.settings.warnLimit<state.settings.goodLimit){if(t.dataset.thr==='goodLimit')state.settings.warnLimit=state.settings.goodLimit;else state.settings.goodLimit=state.settings.warnLimit}
+    save();render();return}
+  if(t.id==='histMonth'){ui.histMonth=t.value;render();return}
+  if(t.id==='importfile'&&t.files[0]){const rd=new FileReader();rd.onload=()=>{try{showImport(parseAny(String(rd.result)))}catch(err){toast('読み込めませんでした：'+err.message)}};rd.readAsText(t.files[0],'utf-8');t.value=''}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('modal').innerHTML=''});
+function setHash(h){try{history.replaceState(null,'','#'+h)}catch(e){location.hash=h}}
+function fromHash(){const h=location.hash.slice(1);if(['calendar','analysis','history','config','privacy'].includes(h))ui.tab=h;const m=/^day-(\d{4}-\d{2}-\d{2})$/.exec(h);return m?m[1]:null}
+window.addEventListener('hashchange',()=>{fromHash();render()});
+
+if(!load()){state.records=sampleRecords();state.demo=true}
+loadScorecards();
+if(params.get('range'))ui.range=params.get('range');
+if(params.get('theme'))state.settings.appearance=params.get('theme');
+if(params.get('shot'))state.demo=false;
+applyTheme();
+const openDate=fromHash();render();if(openDate)openDay(openDate);
+window.__dcr={period,day,state,TODAY,level,scCalc,decText,openScore};
+})();
+</script>
+</body>
+</html>
