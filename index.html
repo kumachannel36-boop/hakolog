@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="配送ドライバーのための配達実績ノート。C1・C2別のDCR（未配達率）を色分けで記録できます。">
+<meta name="description" content="配送ドライバーのための成績ノート。週間スコアとC1・C2別のDCR（未配達率）を記録できます。">
 <meta name="theme-color" content="#0A6CFF">
 <link rel="icon" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
@@ -107,6 +107,7 @@ h2{font-size:16px;font-weight:800;margin:0}
 .hero .mini span{display:block;font-size:11px;opacity:.85;font-weight:700}
 .hero .mini b{font-size:18px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.kpis.k4{grid-template-columns:repeat(4,minmax(0,1fr))}
 .kpi{--k:var(--blue);background:var(--card);border-radius:16px;padding:12px;box-shadow:var(--shadow);min-width:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;align-items:center}
 .ki{grid-row:span 2;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--k) 15%,transparent);color:var(--k)}
 .ki svg{width:22px;height:22px}
@@ -167,7 +168,7 @@ textarea{width:100%;min-height:160px;border-radius:12px;border:1px solid var(--l
 .thr:last-child{border-bottom:0}
 .thr input{width:84px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--card);text-align:center;font-weight:700}
 .scale{display:flex;height:10px;border-radius:5px;overflow:hidden;margin:10px 0 2px}
-@media (max-width:760px){.two{grid-template-columns:minmax(0,1fr)}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.charts{grid-template-columns:minmax(0,1fr)}.hero{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){.two{grid-template-columns:minmax(0,1fr)}.kpis,.kpis.k4{grid-template-columns:repeat(2,minmax(0,1fr))}.charts{grid-template-columns:minmax(0,1fr)}.hero{grid-template-columns:minmax(0,1fr)}}
 @media (min-width:900px){.day{min-height:112px;padding:8px 8px 6px}.day .d{font-size:16px}.day .l{font-size:13px}.day .cv{font-size:14.5px}.day .cv i{font-size:11px}.day .dcr{font-size:15px}.day .bar{height:5px}.week{font-size:13px}}
 @media (max-width:430px){.day{min-height:92px;padding:6px 3px 4px;border-radius:10px}.day .l{font-size:9.5px}.day .cv{font-size:10.5px;gap:3px;align-items:center}.day .cv i{font-size:0;width:4px;height:11px;padding:0;border-radius:2px}.day .dcr{font-size:10.5px}.grid{gap:3px}h1{font-size:25px}.hero .big{font-size:40px}}
 .schip{display:inline-flex;gap:4px;align-items:center;border-radius:999px;padding:3px 10px;font-weight:700;cursor:pointer;border:1px solid color-mix(in srgb,var(--blue) 45%,transparent);background:transparent;color:var(--blue);font-size:12px;min-height:26px}
@@ -390,10 +391,13 @@ function chartSVG(o){
   const all=[];o.series.forEach(s=>s.values.forEach(v=>{if(v!=null)all.push(v)}));
   let max=o.type==='stack'?Math.max(0,...o.labels.map((_,i)=>o.series.reduce((s,se)=>s+(se.values[i]||0),0))):Math.max(0,...all);
   if(o.bands)max=Math.max(max,state.settings.warnLimit*1.25);
-  const yMin=0,yMax=niceMax(max*1.1||1);
-  const y=v=>T+ih-(Math.min(v,yMax)-yMin)/(yMax-yMin)*ih;
+  let yMin=0,yMax=niceMax(max*1.1||1);
+  if(o.free&&all.length){const mn=Math.min(...all,o.ref??Infinity),mx=Math.max(...all,o.ref??-Infinity);const pad=Math.max(4,(mx-mn)*.08);
+    for(const st of [5,10,15,20,25,30,40,50,60,75,100,150,200,250,500]){const lo=Math.floor((mn-pad)/st)*st;if(lo+4*st>=mx+pad){yMin=lo;yMax=lo+4*st;break}}}
+  const y=v=>T+ih-(Math.max(Math.min(v,yMax),yMin)-yMin)/(yMax-yMin)*ih;
   const step=iw/Math.max(N,1),x=i=>L+step*(i+.5);
   let g='';
+  if(o.ref!=null){const yy=y(o.ref);g+=`<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="var(--muted)" stroke-width="1.4" stroke-dasharray="5 4"/><text x="${L+6}" y="${yy+14}" text-anchor="start" font-size="10.5" font-weight="700" fill="var(--muted)">基本点${o.ref}</text>`}
   if(o.bands){const s=state.settings;[[0,s.goodLimit,'var(--good)'],[s.goodLimit,s.warnLimit,'var(--warn)'],[s.warnLimit,yMax,'var(--bad)']].forEach(([a,b,c])=>{if(b>a)g+=`<rect x="${L}" y="${y(b)}" width="${iw}" height="${y(a)-y(b)}" fill="${c}" fill-opacity=".09"/>`})}
   for(let k=0;k<=4;k++){const v=yMin+(yMax-yMin)*k/4,yy=y(v);g+=`<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="var(--line)" stroke-width="1"/><text x="${L-6}" y="${yy+4}" text-anchor="end" font-size="11" fill="var(--muted)">${fmtTick(v,o.unit)}</text>`}
   const every=Math.ceil(N/Math.max(4,Math.floor(W/80)));
@@ -411,7 +415,7 @@ function chartSVG(o){
       s.values.forEach((v,i)=>{if(v==null){pen=false;return}d+=(pen?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1);pen=true;pts.push([i,v])});
       if(pts.length>1&&!o.bands){const area=`M${x(pts[0][0])} ${T+ih}`+pts.map(([i,v])=>`L${x(i)} ${y(v)}`).join('')+`L${x(pts[pts.length-1][0])} ${T+ih}Z`;g+=`<path d="${area}" fill="${s.color}" fill-opacity=".1"/>`}
       g+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>`;
-      pts.forEach(([i,v],k)=>{const last=k===pts.length-1;const pc=o.bands?level(v).c:s.color;if(N<=45||last)g+=`<circle cx="${x(i)}" cy="${y(v)}" r="${last?5:3.2}" fill="${last?pc:'var(--card)'}" stroke="${pc}" stroke-width="2.2"/>`;
+      pts.forEach(([i,v],k)=>{const last=k===pts.length-1;const pc=o.bands?level(v).c:o.ref!=null?(v>=o.ref?'var(--green)':'var(--red)'):s.color;if(N<=45||last)g+=`<circle cx="${x(i)}" cy="${y(v)}" r="${last?5:3.2}" fill="${last?pc:'var(--card)'}" stroke="${pc}" stroke-width="2.2"/>`;
         if(showVals||last)g+=`<text x="${Math.min(Math.max(x(i),L+14),W-R-16)}" y="${y(v)-10}" text-anchor="middle" font-size="10.5" font-weight="800" fill="var(--fg)">${fmtVal(v,o.unit)}</text>`})})}
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.title||'グラフ')}">${g}</svg>`}
 function fmtTick(v,u){return u==='%'?(Math.round(v*100)/100)+'%':(v>=1000?(v/1000).toFixed(1)+'k':Math.round(v))}
@@ -439,17 +443,18 @@ const IC={
 function kpi(label,value,unit,color,icon,plain){return `<div class="kpi" style="--k:${color}"><span class="ki">${IC[icon]}</span><div class="k">${label}</div><div class="v ${plain?'plain':''}">${value}${unit?`<small>${unit}</small>`:''}</div></div>`}
 const TABICON={
  calendar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+ score:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="5.5"/><path d="m8.5 13.5-1.5 7 5-2.5 5 2.5-1.5-7"/></svg>',
  analysis:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 20v-8M11 20V5M17 20v-6M3 20h18"/></svg>',
  history:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></svg>',
  config:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></svg>'};
-const TABS=[['calendar','カレンダー'],['analysis','分析'],['history','履歴'],['config','設定']];
+const TABS=[['calendar','カレンダー'],['score','スコア'],['analysis','分析'],['history','履歴'],['config','設定']];
 const LOGO='<span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"><path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/><path d="M3 7.5v9L12 21l9-4.5v-9"/><path d="m8.5 14 2 2 4-4.5"/></svg></span>';
 function title(t){return `<div class="top">${LOGO}<h1>${t}</h1></div>`}
 
 function render(){
   document.getElementById('tabbar').innerHTML=TABS.map(([k,l])=>`<button class="tab" data-tab="${k}" ${ui.tab===k?'aria-current="page"':''}>${TABICON[k]}<span>${l}</span></button>`).join('');
   const demo=state.demo?`<div class="banner row"><span><b>サンプルデータを表示中</b>　使い方を確認したら、消して自分の記録を始められます。</span><span class="spacer"></span><button class="btn primary" data-act="cleardemo">サンプルを消して始める</button></div>`:'';
-  const body=ui.tab==='calendar'?viewCalendar():ui.tab==='analysis'?viewAnalysis():ui.tab==='history'?viewHistory():ui.tab==='privacy'?viewPrivacy():viewSettings();
+  const body=ui.tab==='calendar'?viewCalendar():ui.tab==='score'?viewScore():ui.tab==='analysis'?viewAnalysis():ui.tab==='history'?viewHistory():ui.tab==='privacy'?viewPrivacy():viewSettings();
   document.getElementById('app').innerHTML=`<div class="stack">${demo}${body}</div>`}
 
 function legendHTML(){const s=state.settings;return `<div class="legend"><span class="lg">C1＝C1だけ／C2＝C1＋C2合算</span><span class="lg"><i style="background:var(--good)"></i>良好 ${lim(s.goodLimit)}%以下</span><span class="lg"><i style="background:var(--warn)"></i>注意 ${lim(s.warnLimit)}%以下</span><span class="lg"><i style="background:var(--bad)"></i>要改善 ${lim(s.warnLimit)}%超</span><span class="lg"><i style="background:var(--c1)"></i>C1</span><span class="lg"><i style="background:var(--c2)"></i>C2</span></div>`}
@@ -515,6 +520,28 @@ function viewAnalysis(){
   h+=`<div class="sectiontitle" style="--t:var(--blue)">配達実績分析</div><div class="charts">${A.join('')}</div><div class="sectiontitle" style="--t:var(--r-cu)">未完了分析</div><div class="charts">${B.join('')}</div>`;
   return h}
 
+function decNum(x){return Number(x.n)/Math.pow(10,x.s)}
+function viewScore(){
+  const tw=ymd(weekStartOf(TODAY)),lw=ymd(addDays(weekStartOf(TODAY),-7));
+  const list=Object.values(state.scorecards).sort((a,b)=>a.weekStart<b.weekStart?-1:1).map(c=>({c,r:scCalc(c)}));
+  const cur=state.scorecards[tw]?scCalc(state.scorecards[tw]):null;
+  let h=title('週間スコア')+`<div class="shero"><div class="row"><b>📅 今週 ${weekLabel(tw)}</b><span class="spacer"></span>${cur?`<span class="tag">${cur.complete?'入力完了':'未入力あり'}</span>`:''}</div>
+   <div class="row" style="align-items:baseline;gap:4px"><span class="big">${cur?decText(cur.total):'—'}</span><b style="font-size:22px">点</b></div>
+   <div class="row" style="margin-top:8px"><button class="btn" style="background:#fff;color:var(--blue)" data-score="${tw}">${cur?'今週のスコアを編集':'今週のスコアを入力'}</button><button class="btn" style="background:rgba(255,255,255,.2);color:#fff" data-score="${lw}">先週 ${weekLabel(lw)}</button></div></div>`;
+  if(!list.length)return h+`<div class="card"><h2>まだスコアカードがありません</h2><p class="sub" style="margin:6px 0 0">「今週のスコアを入力」か、カレンダーの週の行にある「スコア入力」から始めましょう。Mentorスコア・DNR・持ち戻り率などから、基本点100点に加点・減点して自動で計算します。</p></div>`;
+  let sum={n:0n,s:0};list.forEach(x=>sum=decAdd(sum,x.r.total));
+  const nums=list.map(x=>decNum(x.r.total));const avg=decNum(sum)/list.length;
+  const mx=list.reduce((a,b)=>decCmp(b.r.total,a.r.total)>0?b:a),mn=list.reduce((a,b)=>decCmp(b.r.total,a.r.total)<0?b:a);
+  const over=list.filter(x=>decCmp(x.r.total,{n:100n,s:0})>=0).length;
+  h+=`<div class="kpis k4">${kpi('平均点',(Math.round(avg*100)/100).toString().replace('-','−'),'点','var(--blue)','pct')}${kpi('最高点',decText(mx.r.total),'点','var(--green)','check')}${kpi('最低点',decText(mn.r.total),'点','var(--red)','x')}${kpi('100点以上の週',over+'/'+list.length,'週','var(--purple)','cal',true)}</div>`;
+  const recent=list.slice(-26);
+  h+=chartCard('スコアの推移','点',chartSVG({type:'line',free:true,ref:100,labels:recent.map(x=>weekLabel(x.c.weekStart).split('〜')[0]),series:[{name:'週間スコア',color:'var(--blue)',values:recent.map(x=>decNum(x.r.total))}],unit:'点'}),[{name:'週間スコア',color:'var(--blue)'},{name:'基本点100',color:'var(--muted)'}],'var(--blue)');
+  h+=`<div class="sectiontitle" style="--t:var(--blue)">週ごとのスコア</div><div class="list">`+list.slice().reverse().map(x=>{
+    const ws=x.c.weekStart,d=parseD(ws),wp=period(daysBetween(d,addDays(d,6)));const good=decCmp(x.r.total,{n:100n,s:0})>=0,col=good?'var(--green)':'var(--red)';
+    const minus=x.r.lines.filter(l=>l.pts.n<0n).sort((a,b)=>decCmp(a.pts,b.pts))[0];
+    return `<button class="item" style="--s:${col}" data-score="${ws}"><div class="row" style="gap:8px"><b class="num">${weekLabel(ws)}</b>${x.r.complete?'':'<span class="st" style="--s:var(--warn)">⚠︎ 未入力あり</span>'}<span class="spacer"></span><b class="num" style="color:${col};font-size:19px">${decText(x.r.total)}点</b></div>
+      <div class="row num sub" style="gap:12px;margin-top:3px;font-weight:700">${wp.workdays?`<span style="color:${level(wp.dcr).c}">週DCR ${pct(wp.dcr)}</span>`:'<span>週DCR —</span>'}${minus?`<span>最大の減点：${minus.f.label} ${decSigned(minus.pts)}点</span>`:''}</div></button>`}).join('')+`</div>`;
+  return h}
 function viewHistory(){
   const all=Object.values(state.records);
   const months=[...new Set(all.map(r=>r.date.slice(0,7)))].sort().reverse();
@@ -709,11 +736,14 @@ document.addEventListener('change',e=>{
   if(t.id==='importfile'&&t.files[0]){const rd=new FileReader();rd.onload=()=>{try{showImport(parseAny(String(rd.result)))}catch(err){toast('読み込めませんでした：'+err.message)}};rd.readAsText(t.files[0],'utf-8');t.value=''}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('modal').innerHTML=''});
 function setHash(h){try{history.replaceState(null,'','#'+h)}catch(e){location.hash=h}}
-function fromHash(){const h=location.hash.slice(1);if(['calendar','analysis','history','config','privacy'].includes(h))ui.tab=h;const m=/^day-(\d{4}-\d{2}-\d{2})$/.exec(h);return m?m[1]:null}
+function fromHash(){const h=location.hash.slice(1);if(['calendar','score','analysis','history','config','privacy'].includes(h))ui.tab=h;const m=/^day-(\d{4}-\d{2}-\d{2})$/.exec(h);return m?m[1]:null}
 window.addEventListener('hashchange',()=>{fromHash();render()});
 
 if(!load()){state.records=sampleRecords();state.demo=true}
 loadScorecards();
+if(params.get('shot')&&!Object.keys(state.scorecards).length){ // スクリーンショット用の見本
+  const base=weekStartOf(TODAY);const m=['848','812','797','836','861','805','829','851','790','844','858','833'];const rr=['0.48','0.31','1.04','0.22','0.15','0.52','0.27','0.19','0.88','0.36','0.12','0.29'];
+  for(let i=11;i>=0;i--){const ws=ymd(addDays(base,-7*i));const k=11-i;state.scorecards[ws]={weekStart:ws,targetMonth:monthChoices(ws).slice(-1)[0],mentor:m[k],dnr:String(k%5===2?1:0),returnRate:rr[k],late:String(k%7===3?1:0),accident:'0',workDays:'22',requestedOff:String(k%3===0?2:1),follow:String(k%4===1?1:0),morningAbsent:'0'}}}
 if(params.get('range'))ui.range=params.get('range');
 if(params.get('theme'))state.settings.appearance=params.get('theme');
 if(params.get('shot'))state.demo=false;
