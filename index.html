@@ -219,6 +219,7 @@ const params=new URLSearchParams(location.search);
 const IOS=params.get('ios')==='1';
 const TODAY=params.get('today')?parseD(params.get('today')):stripTime(new Date());
 const APP_NAME='ハコログ';
+const APP_VERSION='1.2'; // ウェブ版のバージョン（version.json と合わせる）
 const BACKUP_NAME='ハコログ_バックアップ.json';
 
 let state={records:{},settings:defaultSettings(),demo:false,scorecards:{}};
@@ -453,9 +454,16 @@ function title(t){return `<div class="top">${LOGO}<h1>${t}</h1></div>`}
 
 function render(){
   document.getElementById('tabbar').innerHTML=TABS.map(([k,l])=>`<button class="tab" data-tab="${k}" ${ui.tab===k?'aria-current="page"':''}>${TABICON[k]}<span>${l}</span></button>`).join('');
+  const upd=ui.newVersion?`<div class="banner row" style="background:color-mix(in srgb,var(--green) 14%,var(--card))"><span><b>新しいバージョン ${esc(ui.newVersion.version)} があります</b>　${esc((ui.newVersion.notes||[]).join('／'))}<br><span class="sub">入力したデータはそのまま残ります。</span></span><span class="spacer"></span><button class="btn primary" style="background:var(--green)" data-act="reload">今すぐ更新</button></div>`:'';
   const demo=state.demo?`<div class="banner row"><span><b>サンプルデータを表示中</b>　使い方を確認したら、消して自分の記録を始められます。</span><span class="spacer"></span><button class="btn primary" data-act="cleardemo">サンプルを消して始める</button></div>`:'';
   const body=ui.tab==='calendar'?viewCalendar():ui.tab==='score'?viewScore():ui.tab==='analysis'?viewAnalysis():ui.tab==='history'?viewHistory():ui.tab==='privacy'?viewPrivacy():viewSettings();
-  document.getElementById('app').innerHTML=`<div class="stack">${demo}${body}</div>`}
+  document.getElementById('app').innerHTML=`<div class="stack">${upd}${demo}${body}</div>`}
+// 新しいバージョンの確認（GitHub Pages の version.json を見る）
+function checkUpdate(manual){
+  if(!/^https?:$/.test(location.protocol)){if(manual)toast('この開き方では確認できません');return}
+  fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{
+    if(j&&j.version&&j.version!==APP_VERSION){ui.newVersion=j;render();if(manual)toast('新しいバージョンがあります')}
+    else if(manual)toast('最新のバージョンです（'+APP_VERSION+'）')}).catch(()=>{if(manual)toast('確認できませんでした')})}
 
 function legendHTML(){const s=state.settings;return `<div class="legend"><span class="lg">C1＝C1だけ／C2＝C1＋C2合算</span><span class="lg"><i style="background:var(--good)"></i>良好 ${lim(s.goodLimit)}%以下</span><span class="lg"><i style="background:var(--warn)"></i>注意 ${lim(s.warnLimit)}%以下</span><span class="lg"><i style="background:var(--bad)"></i>要改善 ${lim(s.warnLimit)}%超</span><span class="lg"><i style="background:var(--c1)"></i>C1</span><span class="lg"><i style="background:var(--c2)"></i>C2</span></div>`}
 
@@ -584,7 +592,7 @@ function viewSettings(){
    <div class="row"><label class="btn" for="importfile" style="display:inline-flex;align-items:center">ファイルから復元（JSON・CSV）</label><input id="importfile" type="file" accept=".json,.csv,application/json,text/csv,text/plain" hidden><button class="btn" data-act="pasteimport">貼り付けて復元</button></div>
    <p class="sub" style="margin:0">ウェブ版のデータはこのブラウザの中だけに保存されます。ブラウザの履歴削除で消えるため、ときどき書き出して保存してください。</p></div>`}
   <div class="card stack" style="gap:10px"><h2>データ管理</h2><div class="row"><button class="btn" data-act="sample">テストデータを読み込む</button><button class="btn danger" data-act="wipe">全データを削除</button></div></div>
-  <div class="card"><h2>ハコログについて</h2><p class="sub" style="margin:6px 0">バージョン 1.0${IOS?'':'（ウェブ版）'}　© 2026 天然くま本舗</p><button class="btn ghost" data-act="privacy" style="padding-left:0">プライバシーポリシー・サポート</button></div>
+  <div class="card"><h2>ハコログについて</h2><p class="sub" style="margin:6px 0">バージョン ${IOS?'1.0':APP_VERSION+'（ウェブ版）'}　© 2026 天然くま本舗</p><div class="row">${IOS?'':'<button class="btn" data-act="checkupd">最新版を確認</button>'}<button class="btn ghost" data-act="privacy">プライバシーポリシー・サポート</button></div><p class="sub" style="margin:6px 0 0">${IOS?'起動時に新しいバージョンを確認し、あればお知らせします。':'開くたびに新しいバージョンを確認し、あれば上にお知らせが出ます。更新してもデータは消えません。'}</p></div>
   </div></div>`}
 
 function viewPrivacy(){
@@ -592,9 +600,10 @@ function viewPrivacy(){
   <p><b>ハコログ</b>（以下「本アプリ」）は、天然くま本舗が提供する配達実績の記録アプリです。</p>
   <p><b>1. 収集する情報</b><br>本アプリは個人を特定できる情報を収集しません。入力した配達実績は、お使いの端末（ウェブ版はブラウザ）の中だけに保存されます。開発者のサーバーへ送信されることはありません。</p>
   <p><b>2. iCloud Driveへのバックアップ</b><br>iPhone・iPad版では、利用者が自分で選んだiCloud Driveのフォルダにバックアップファイルを保存できます。このファイルは利用者のiCloudアカウントに保存され、開発者が見ることはできません。</p>
-  <p><b>3. 第三者への提供・広告・解析</b><br>本アプリは第三者への情報提供、広告配信、利用状況の解析を行いません。</p>
-  <p><b>4. データの削除</b><br>設定の「全データを削除」、またはアプリの削除でいつでも消去できます。</p>
-  <p><b>5. お問い合わせ</b><br>kumachannel36@gmail.com</p><p class="sub">制定日：2026年11月7日</p></div>
+  <p><b>3. アップデートの確認</b><br>新しいバージョンのお知らせのため、アプリはApp Storeの公開情報、ウェブ版は公開ページのバージョン情報を取得します。個人情報や入力データは送信しません。</p>
+  <p><b>4. 第三者への提供・広告・解析</b><br>本アプリは第三者への情報提供、広告配信、利用状況の解析を行いません。</p>
+  <p><b>5. データの削除</b><br>設定の「全データを削除」、またはアプリの削除でいつでも消去できます。</p>
+  <p><b>6. お問い合わせ</b><br>kumachannel36@gmail.com</p><p class="sub">制定日：2026年11月7日</p></div>
   <div class="card prose"><h2>サポート</h2><p>不具合やご要望は上記メールアドレスまでお送りください。端末名・OSのバージョン・症状が分かると早く対応できます。</p></div>
   <div><button class="btn" data-act="back">設定に戻る</button></div>`}
 
@@ -718,6 +727,8 @@ document.addEventListener('click',e=>{
   if(a==='aprev'){if(ui.range==='month')ui.aMonth=new Date(ui.aMonth.getFullYear(),ui.aMonth.getMonth()-1,1);else ui.aYear--}
   if(a==='anext'){if(ui.range==='month')ui.aMonth=new Date(ui.aMonth.getFullYear(),ui.aMonth.getMonth()+1,1);else ui.aYear++}
   if(a==='histsort')ui.histDesc=!ui.histDesc;
+  if(a==='reload'){try{location.reload()}catch(e){};return}
+  if(a==='checkupd'){checkUpdate(true);return}
   if(a==='csv'){showExport('csv');return}
   if(a==='exportjson'){showExport('json');return}
   if(a==='pasteimport'){showPaste();return}
@@ -749,6 +760,7 @@ if(params.get('theme'))state.settings.appearance=params.get('theme');
 if(params.get('shot'))state.demo=false;
 applyTheme();
 const openDate=fromHash();render();if(openDate)openDay(openDate);
+if(!params.get('shot')){checkUpdate(false);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate(false)});setInterval(()=>checkUpdate(false),30*60*1000)}
 window.__dcr={period,day,state,TODAY,level,scCalc,decText,openScore};
 })();
 </script>
